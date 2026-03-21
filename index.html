@@ -257,12 +257,35 @@ html,body {
 }
 
 /* Compare mode */
-.compare-diff { 
+.compare-diff {
   padding:6px 10px; border-radius:4px; font-size:12px; text-align:center; margin-top:6px;
 }
 .compare-diff.ok { background:#00e67622; color:#00e676; }
 .compare-diff.warn { background:#ffab0022; color:#ffab00; }
 .compare-diff.danger { background:#ff3d3d22; color:#ff3d3d; }
+
+/* Star detail popup */
+#starDetailPopup {
+  display:none; position:fixed; z-index:300;
+  background:var(--bg-card); border:1px solid var(--border-active);
+  border-radius:8px; padding:12px 16px; min-width:220px; max-width:300px;
+  box-shadow:0 4px 24px rgba(0,0,0,.6); pointer-events:auto;
+}
+#starDetailPopup .popup-title {
+  font-size:14px; font-weight:700; margin-bottom:6px;
+  font-family:'JetBrains Mono',monospace;
+}
+#starDetailPopup .popup-row {
+  display:flex; justify-content:space-between; font-size:11px; padding:2px 0;
+  border-bottom:1px solid var(--border);
+}
+#starDetailPopup .popup-row:last-child { border-bottom:none; }
+#starDetailPopup .popup-label { color:var(--text-secondary); }
+#starDetailPopup .popup-value { font-family:'JetBrains Mono',monospace; color:var(--text-primary); }
+#starDetailPopup .popup-close {
+  position:absolute; top:6px; right:10px; background:none; border:none;
+  color:var(--text-secondary); font-size:16px; cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -371,16 +394,37 @@ html,body {
       <!-- Position Compare -->
       <div class="card">
         <div class="card-title">Position Compare (Ship GPS vs Phone)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:8px">
           <div>
-            <div class="data-label" style="margin-bottom:4px">Ship Lat</div>
-            <input class="input" id="shipLat" placeholder="25°12.345'N" style="font-size:12px">
+            <div class="data-label" style="margin-bottom:4px">Ship Latitude (e.g. type 22345 → 22°34.5')</div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input class="input mono" id="shipLatRaw" placeholder="22345" style="font-size:14px;flex:1" oninput="autoFormatCoord(this,'lat')">
+              <div class="select-wrap" style="width:55px;flex-shrink:0">
+                <select id="shipLatNS" style="padding:8px 22px 8px 6px;font-size:13px">
+                  <option value="N">N</option>
+                  <option value="S">S</option>
+                </select>
+              </div>
+            </div>
+            <div class="data-label mono" id="shipLatFormatted" style="color:var(--accent);margin-top:2px">--°--.---'</div>
           </div>
+          <div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:8px">
           <div>
-            <div class="data-label" style="margin-bottom:4px">Ship Lon</div>
-            <input class="input" id="shipLon" placeholder="055°18.678'E" style="font-size:12px">
+            <div class="data-label" style="margin-bottom:4px">Ship Longitude (e.g. type 0551234 → 055°12.34')</div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input class="input mono" id="shipLonRaw" placeholder="0551234" style="font-size:14px;flex:1" oninput="autoFormatCoord(this,'lon')">
+              <div class="select-wrap" style="width:55px;flex-shrink:0">
+                <select id="shipLonEW" style="padding:8px 22px 8px 6px;font-size:13px">
+                  <option value="E">E</option>
+                  <option value="W">W</option>
+                </select>
+              </div>
+            </div>
+            <div class="data-label mono" id="shipLonFormatted" style="color:var(--accent);margin-top:2px">---°--.---'</div>
           </div>
-          <button class="btn btn-sm" onclick="comparePositions()">Compare</button>
+          <button class="btn btn-primary btn-sm" onclick="comparePositions()" style="align-self:center">Compare</button>
         </div>
         <div class="compare-diff" id="compareDiff" style="display:none"></div>
       </div>
@@ -389,6 +433,16 @@ html,body {
     <!-- TAB 2: CHART -->
     <div class="tab-panel" id="tab-chart">
       <div id="chart-map"></div>
+      <!-- Chart legend overlay -->
+      <div id="chart-legend" style="position:absolute;bottom:50px;left:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:10px;z-index:500;max-width:200px;pointer-events:auto;display:none">
+        <div style="font-weight:600;margin-bottom:4px;color:var(--accent);font-size:11px">Chart Legend</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:12px;height:3px;background:#2a7fff;border-radius:1px"></span> Depth contours</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:8px;height:8px;background:#ffab00;border-radius:50%"></span> Lights</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:8px;height:8px;background:#00e676;border-radius:50%"></span> Buoys/Marks</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:12px;height:3px;background:#ff4444;border-radius:1px"></span> Channels</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="color:#2a7fff;font-weight:bold">12</span> Depth (meters)</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="none" stroke="#ff8a65" stroke-width="1.5"/></svg> Ports</div>
+      </div>
     </div>
 
     <!-- TAB 3: SKYPLOT -->
@@ -576,6 +630,13 @@ html,body {
       SHARE
     </button>
   </div>
+</div>
+
+<!-- Star Detail Popup -->
+<div id="starDetailPopup">
+  <button class="popup-close" onclick="closeStarPopup()">&times;</button>
+  <div class="popup-title" id="starPopupTitle">--</div>
+  <div id="starPopupContent"></div>
 </div>
 
 <!-- Settings Overlay -->
@@ -1008,20 +1069,41 @@ function initMap() {
     center: [25.0, 55.0], zoom: 8,
     zoomControl: true, attributionControl: true
   });
-  
-  // Base layer - OSM
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+  // Base layer - English-only CartoDB Voyager (no local scripts)
+  const baseEnglish = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(STATE.map);
-  
-  // OpenSeaMap overlay
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+    subdomains: 'abcd'
+  });
+  baseEnglish.addTo(STATE.map);
+
+  // OpenSeaMap overlay (buoys, lights, channels, port marks)
   STATE.seamarkLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
     maxZoom: 18, opacity: 0.9,
-    attribution: '&copy; OpenSeaMap'
+    attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a>'
   });
   if (getSettings().seamarks) STATE.seamarkLayer.addTo(STATE.map);
-  
+
+  // Water depth / bathymetry overlay (GEBCO)
+  STATE.depthLayer = L.tileLayer.wms('https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv', {
+    layers: 'GEBCO_LATEST',
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.35,
+    attribution: '&copy; <a href="https://www.gebco.net">GEBCO</a>'
+  });
+  STATE.depthLayer.addTo(STATE.map);
+
+  // Port names overlay using OpenSeaMap harbours
+  STATE.portLayer = L.tileLayer('https://tiles.openseamap.org/harbours/{z}/{x}/{y}.png', {
+    maxZoom: 18, opacity: 1.0
+  });
+  STATE.portLayer.addTo(STATE.map);
+
+  // Show chart legend
+  document.getElementById('chart-legend').style.display = 'block';
+
   // Vessel marker (SVG ship icon)
   const vesselIcon = L.divIcon({
     className: '',
@@ -1031,10 +1113,10 @@ function initMap() {
     iconSize: [24, 24], iconAnchor: [12, 12]
   });
   STATE.marker = L.marker([25.0, 55.0], { icon: vesselIcon, rotationAngle: 0 }).addTo(STATE.map);
-  
+
   // Track polyline
   STATE.trackLine = L.polyline([], { color: '#00e67688', weight: 2 }).addTo(STATE.map);
-  
+
   // Accuracy circle
   STATE.accCircle = L.circle([25.0, 55.0], { radius: 50, color: '#2a7fff44', fillColor: '#2a7fff22', weight: 1 }).addTo(STATE.map);
 }
@@ -1306,35 +1388,149 @@ function invertMatrix4(m) {
 }
 
 // ============================================================
-// CELESTIAL VIEW (Stars, Planets, Sun, Moon)
+// CELESTIAL VIEW (Stars, Planets, Sun, Moon + Constellations)
 // ============================================================
+
+// Store plotted body positions for click detection
+let celestialBodies = [];
+
+// Navigational stars with extra info: [name, RA°, Dec°, magnitude, constellation, Bayer designation]
+const NAV_STARS = [
+  ['Polaris',37.95,89.26,1.98,'Ursa Minor','α UMi'],
+  ['Alpheratz',353.15,29.09,2.06,'Andromeda','α And'],
+  ['Ankaa',353.17,-42.31,2.40,'Phoenix','α Phe'],
+  ['Schedar',349.87,56.54,2.24,'Cassiopeia','α Cas'],
+  ['Diphda',348.98,-17.98,2.04,'Cetus','β Cet'],
+  ['Achernar',335.26,-57.24,0.46,'Eridanus','α Eri'],
+  ['Hamal',327.99,23.46,2.00,'Aries','α Ari'],
+  ['Menkar',314.13,4.09,2.53,'Cetus','α Cet'],
+  ['Mirfak',308.59,49.86,1.79,'Perseus','α Per'],
+  ['Aldebaran',290.97,16.51,0.85,'Taurus','α Tau'],
+  ['Rigel',281.28,-8.20,0.13,'Orion','β Ori'],
+  ['Capella',280.73,46.00,0.08,'Auriga','α Aur'],
+  ['Bellatrix',278.43,6.35,1.64,'Orion','γ Ori'],
+  ['Elnath',278.11,28.61,1.65,'Taurus','β Tau'],
+  ['Alnilam',275.86,-1.20,1.69,'Orion','ε Ori'],
+  ['Betelgeuse',270.97,7.41,0.50,'Orion','α Ori'],
+  ['Canopus',263.99,-52.70,-0.74,'Carina','α Car'],
+  ['Sirius',258.66,-16.72,-1.46,'Canis Major','α CMa'],
+  ['Procyon',244.99,5.23,0.34,'Canis Minor','α CMi'],
+  ['Pollux',243.53,28.01,1.14,'Gemini','β Gem'],
+  ['Regulus',207.37,11.97,1.40,'Leo','α Leo'],
+  ['Dubhe',193.51,61.75,1.79,'Ursa Major','α UMa'],
+  ['Denebola',182.53,14.57,2.14,'Leo','β Leo'],
+  ['Acrux',173.07,-63.10,0.76,'Crux','α Cru'],
+  ['Gacrux',171.95,-57.11,1.63,'Crux','γ Cru'],
+  ['Alioth',166.20,55.96,1.77,'Ursa Major','ε UMa'],
+  ['Spica',158.33,-11.16,1.04,'Virgo','α Vir'],
+  ['Alkaid',152.91,49.31,1.86,'Ursa Major','η UMa'],
+  ['Hadar',148.79,-60.37,0.61,'Centaurus','β Cen'],
+  ['Arcturus',145.97,19.18,-0.05,'Bootes','α Boo'],
+  ['Rigil Kent',139.90,-60.84,-0.01,'Centaurus','α Cen'],
+  ['Kochab',137.18,74.15,2.08,'Ursa Minor','β UMi'],
+  ['Antares',112.42,-26.43,1.09,'Scorpius','α Sco'],
+  ['Vega',80.74,38.78,0.03,'Lyra','α Lyr'],
+  ['Altair',62.07,8.87,0.77,'Aquila','α Aql'],
+  ['Deneb',49.31,45.28,1.25,'Cygnus','α Cyg'],
+  ['Fomalhaut',15.42,-29.63,1.16,'Piscis Austrinus','α PsA'],
+];
+
+// Constellation stick figures: pairs of [star1_name, star2_name]
+// Uses navStars + extra stars for drawing lines
+const CONSTELLATION_EXTRA_STARS = [
+  // Extra stars needed for constellation lines (not navigational stars)
+  ['Mintaka',278.82,-0.30],['Saiph',283.70,-9.67],['Merak',194.07,56.38],
+  ['Phecda',193.90,53.69],['Megrez',183.86,57.03],['Mizar',167.00,54.93],
+  ['Castor',246.24,31.89],['Alhena',245.98,16.40],
+  ['Alderamin',40.07,62.59],['Caph',352.49,59.15],['Navi',0.68,60.72],
+  ['Ruchbah',6.55,60.24],['Shedir',349.87,56.54],
+  ['Mimosa',172.10,-59.69],['Delta Cru',174.13,-58.75],
+  ['Shaula',96.37,-37.10],['Sargas',104.06,-42.99],
+  ['Dschubba',120.18,-22.62],['Graffias',119.21,-19.81],
+  ['Rasalhague',96.57,12.56],['Sadr',56.73,40.26],
+  ['Gienah',50.13,33.97],['Albireo',54.01,27.96],
+  ['Tarazed',60.14,10.61],['Alschain',62.65,6.41],
+  ['Sheliak',81.18,33.36],['Sulafat',81.98,32.69],
+  ['Nunki',82.90,-26.30],['Kaus Australis',83.80,-34.38],
+  ['Ascella',89.36,-29.88],['Nair Al Saif',283.63,-5.91],
+];
+
+// Constellation line pairs [star1, star2] — names reference navStars or extra stars
+const CONSTELLATION_LINES = [
+  // Orion
+  ['Betelgeuse','Bellatrix'],['Betelgeuse','Alnilam'],['Bellatrix','Alnilam'],
+  ['Alnilam','Mintaka'],['Alnilam','Nair Al Saif'],
+  ['Betelgeuse','Saiph'],['Bellatrix','Rigel'],['Rigel','Saiph'],
+  // Ursa Major (Big Dipper)
+  ['Dubhe','Merak'],['Dubhe','Megrez'],['Merak','Phecda'],
+  ['Phecda','Megrez'],['Megrez','Alioth'],['Alioth','Mizar'],['Mizar','Alkaid'],
+  // Cassiopeia
+  ['Schedar','Caph'],['Schedar','Navi'],['Navi','Ruchbah'],['Ruchbah','Caph'],
+  // Crux (Southern Cross)
+  ['Acrux','Gacrux'],['Mimosa','Delta Cru'],
+  // Gemini
+  ['Pollux','Castor'],['Pollux','Alhena'],
+  // Scorpius
+  ['Antares','Dschubba'],['Antares','Shaula'],['Shaula','Sargas'],
+  // Leo
+  ['Regulus','Denebola'],
+  // Cygnus (partial)
+  ['Deneb','Sadr'],['Sadr','Gienah'],['Sadr','Albireo'],
+  // Aquila
+  ['Altair','Tarazed'],['Altair','Alschain'],
+  // Lyra
+  ['Vega','Sheliak'],['Vega','Sulafat'],['Sheliak','Sulafat'],
+  // Summer Triangle (asterism)
+  ['Vega','Deneb'],['Vega','Altair'],['Deneb','Altair'],
+];
+
+function calcStarAzAlt(ra, dec, lat, lon, siderealTime) {
+  const ha = (siderealTime * 15 + lon - ra + 360) % 360;
+  const haR = ha * Math.PI / 180;
+  const decR = dec * Math.PI / 180;
+  const latR = lat * Math.PI / 180;
+  const sinAlt = Math.sin(latR) * Math.sin(decR) + Math.cos(latR) * Math.cos(decR) * Math.cos(haR);
+  const alt = Math.asin(sinAlt) * 180 / Math.PI;
+  const cosAz = (Math.sin(decR) - Math.sin(latR) * sinAlt) / (Math.cos(latR) * Math.cos(Math.asin(sinAlt)));
+  let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
+  if (Math.sin(haR) > 0) az = 360 - az;
+  return { az, alt };
+}
+
+function bodyScreenPos(az, alt, shipHdg, viewSpan, w, horizonY) {
+  const leftBearing = (shipHdg - viewSpan / 2 + 360) % 360;
+  let relB = ((az - leftBearing + 360) % 360);
+  if (relB > viewSpan + 10) return null;
+  const x = (relB / viewSpan) * w;
+  const y = horizonY - (alt / 90) * (horizonY - 25);
+  if (x < -20 || x > w + 20) return null;
+  return { x, y };
+}
+
 function renderCelestial() {
   const canvas = document.getElementById('celestial-canvas');
   if (!canvas) return;
-  
+
   const parent = canvas.parentElement;
   canvas.width = parent.clientWidth;
   canvas.height = parent.clientHeight || 300;
-  
+
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
-  
+
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
   ctx.fillRect(0, 0, w, h);
-  
+
   const shipHdg = parseFloat(document.getElementById('celestialHdg').value) || 0;
   const hoe = parseFloat(document.getElementById('heightOfEye').value) || 15;
   const lat = STATE.lat || 25.0;
   const lon = STATE.lon || 55.0;
   const now = new Date();
-  
-  // Calculate dip angle
-  const dip = 1.76 * Math.sqrt(hoe); // arcminutes
-  
-  // Draw horizon
+
+  const dip = 1.76 * Math.sqrt(hoe);
   const horizonY = h * 0.65;
-  
+
   // Sky gradient
   const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
   const nightMode = getSettings().nightMode;
@@ -1347,7 +1543,7 @@ function renderCelestial() {
   }
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, w, horizonY);
-  
+
   // Sea
   const seaGrad = ctx.createLinearGradient(0, horizonY, 0, h);
   if (nightMode) {
@@ -1359,7 +1555,7 @@ function renderCelestial() {
   }
   ctx.fillStyle = seaGrad;
   ctx.fillRect(0, horizonY, w, h - horizonY);
-  
+
   // Horizon line
   ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--horizon-color').trim();
   ctx.lineWidth = 1;
@@ -1367,18 +1563,15 @@ function renderCelestial() {
   ctx.moveTo(0, horizonY);
   ctx.lineTo(w, horizonY);
   ctx.stroke();
-  
-  // Bearing labels along horizon
+
+  // Bearing labels
   ctx.font = '9px JetBrains Mono';
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim();
   ctx.textAlign = 'center';
-  
-  // View spans 180° centered on ship heading
-  const viewCenter = shipHdg;
+
   const viewSpan = 180;
-  const leftBearing = (viewCenter - viewSpan / 2 + 360) % 360;
-  
-  // Bearing ticks
+  const leftBearing = (shipHdg - viewSpan / 2 + 360) % 360;
+
   for (let b = 0; b < 360; b += 10) {
     let relB = ((b - leftBearing + 360) % 360);
     if (relB > viewSpan) continue;
@@ -1397,8 +1590,8 @@ function renderCelestial() {
       ctx.fillText(label, x, horizonY + 20);
     }
   }
-  
-  // Port / Stbd labels
+
+  // Port / Stbd
   ctx.font = '11px IBM Plex Sans';
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim();
   ctx.textAlign = 'left';
@@ -1407,7 +1600,7 @@ function renderCelestial() {
   ctx.fillText('STBD ▶', w - 8, horizonY - 20);
   ctx.textAlign = 'center';
   ctx.fillText('▲ HEAD', w / 2, 16);
-  
+
   // Ship heading indicator
   ctx.beginPath();
   ctx.moveTo(w / 2, horizonY - 15);
@@ -1416,11 +1609,57 @@ function renderCelestial() {
   ctx.closePath();
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
   ctx.fill();
-  
-  // Calculate celestial bodies using astronomy-engine
+
+  // Setup astronomy
   const observer = new Astronomy.Observer(lat, lon, hoe);
   const date = Astronomy.MakeTime(now);
-  
+  const siderealTime = Astronomy.SiderealTime(date);
+
+  const typeColors = {
+    sun: getComputedStyle(document.documentElement).getPropertyValue('--sun-color').trim(),
+    moon: getComputedStyle(document.documentElement).getPropertyValue('--moon-color').trim(),
+    planet: getComputedStyle(document.documentElement).getPropertyValue('--planet-color').trim(),
+    star: getComputedStyle(document.documentElement).getPropertyValue('--star-color').trim()
+  };
+
+  // Build lookup of all stars (nav + extra) for constellation lines
+  const allStars = {};
+  NAV_STARS.forEach(s => {
+    try {
+      const pos = calcStarAzAlt(s[0+1], s[2], lat, lon, siderealTime);
+      // s = [name, ra, dec, mag, constellation, bayer]
+      allStars[s[0]] = { ra: s[1], dec: s[2], az: pos.az, alt: pos.alt };
+    } catch(e) {}
+  });
+  CONSTELLATION_EXTRA_STARS.forEach(s => {
+    try {
+      const pos = calcStarAzAlt(s[1], s[2], lat, lon, siderealTime);
+      allStars[s[0]] = { ra: s[1], dec: s[2], az: pos.az, alt: pos.alt };
+    } catch(e) {}
+  });
+
+  // Draw constellation lines
+  ctx.strokeStyle = nightMode ? '#331111' : '#1a2540';
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([4, 3]);
+  CONSTELLATION_LINES.forEach(([s1, s2]) => {
+    const star1 = allStars[s1];
+    const star2 = allStars[s2];
+    if (!star1 || !star2) return;
+    if (star1.alt < -5 && star2.alt < -5) return;
+    const p1 = bodyScreenPos(star1.az, star1.alt, shipHdg, viewSpan, w, horizonY);
+    const p2 = bodyScreenPos(star2.az, star2.alt, shipHdg, viewSpan, w, horizonY);
+    if (!p1 || !p2) return;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // Reset clickable bodies
+  celestialBodies = [];
+
   const bodies = [
     { name: 'Sun', body: 'Sun', type: 'sun' },
     { name: 'Moon', body: 'Moon', type: 'moon' },
@@ -1430,66 +1669,51 @@ function renderCelestial() {
     { name: 'Saturn', body: 'Saturn', type: 'planet' },
     { name: 'Mercury', body: 'Mercury', type: 'planet' },
   ];
-  
-  // Navigational stars (57 + Polaris)
-  const navStars = [
-    ['Polaris',37.95,89.26],['Alpheratz',353.15,29.09],['Ankaa',353.17,-42.31],
-    ['Schedar',349.87,56.54],['Diphda',348.98,-17.98],['Achernar',335.26,-57.24],
-    ['Hamal',327.99,23.46],['Menkar',314.13,4.09],['Mirfak',308.59,49.86],
-    ['Aldebaran',290.97,16.51],['Rigel',281.28,-8.20],['Capella',280.73,46.00],
-    ['Bellatrix',278.43,6.35],['Elnath',278.11,28.61],['Alnilam',275.86,-1.20],
-    ['Betelgeuse',270.97,7.41],['Canopus',263.99,-52.70],['Sirius',258.66,-16.72],
-    ['Procyon',244.99,5.23],['Pollux',243.53,28.01],['Regulus',207.37,11.97],
-    ['Dubhe',193.51,61.75],['Denebola',182.53,14.57],['Acrux',173.07,-63.10],
-    ['Gacrux',171.95,-57.11],['Alioth',166.20,55.96],['Spica',158.33,-11.16],
-    ['Alkaid',152.91,49.31],['Hadar',148.79,-60.37],['Arcturus',145.97,19.18],
-    ['Rigil Kent',139.90,-60.84],['Kochab',137.18,74.15],['Antares',112.42,-26.43],
-    ['Vega',80.74,38.78],['Altair',62.07,8.87],['Deneb',49.31,45.28],
-    ['Fomalhaut',15.42,-29.63],
-  ];
-  
+
   const listHtml = [];
-  const typeColors = {
-    sun: getComputedStyle(document.documentElement).getPropertyValue('--sun-color').trim(),
-    moon: getComputedStyle(document.documentElement).getPropertyValue('--moon-color').trim(),
-    planet: getComputedStyle(document.documentElement).getPropertyValue('--planet-color').trim(),
-    star: getComputedStyle(document.documentElement).getPropertyValue('--star-color').trim()
-  };
-  
+
   // Plot planets & sun/moon
   bodies.forEach(b => {
     try {
       const hor = Astronomy.Horizon(date, observer, b.body, 'normal');
       const alt = hor.altitude;
       const az = hor.azimuth;
-      plotBody(ctx, b.name, az, alt, shipHdg, viewSpan, w, h, horizonY, typeColors[b.type], b.type, b.type === 'sun' ? 8 : b.type === 'moon' ? 6 : 4);
-      
+      const pos = plotBody(ctx, b.name, az, alt, shipHdg, viewSpan, w, h, horizonY, typeColors[b.type], b.type, b.type === 'sun' ? 8 : b.type === 'moon' ? 6 : 4);
+
+      if (pos) {
+        celestialBodies.push({
+          name: b.name, type: b.type, az, alt,
+          x: pos.x, y: pos.y, r: b.type === 'sun' ? 10 : b.type === 'moon' ? 8 : 6,
+          constellation: '--', bayer: '--', magnitude: '--',
+          extra: b.type === 'planet' ? 'Planet' : b.type === 'sun' ? 'Star (our Sun)' : 'Natural Satellite'
+        });
+      }
+
       const relBrg = ((az - shipHdg + 360) % 360);
       const side = relBrg <= 180 ? (relBrg < 10 ? 'AHEAD' : 'STBD') : (relBrg > 350 ? 'AHEAD' : 'PORT');
       listHtml.push(`<span style="color:${typeColors[b.type]}">● ${b.name}</span> Alt:${alt.toFixed(1)}° Brg:${az.toFixed(1)}°T ${side}`);
     } catch(e) {}
   });
-  
+
   // Plot navigational stars
-  navStars.forEach(([name, ra, dec]) => {
+  NAV_STARS.forEach(([name, ra, dec, mag, constellation, bayer]) => {
     try {
-      const eq = { ra: ra / 15, dec: dec }; // Convert degrees to hours for RA
-      // Use Astronomy.Horizon for star positions
-      const siderealTime = Astronomy.SiderealTime(date);
-      const ha = (siderealTime * 15 + lon - ra + 360) % 360;
-      const haR = ha * Math.PI / 180;
-      const decR = dec * Math.PI / 180;
-      const latR = lat * Math.PI / 180;
-      
-      const sinAlt = Math.sin(latR) * Math.sin(decR) + Math.cos(latR) * Math.cos(decR) * Math.cos(haR);
-      const alt = Math.asin(sinAlt) * 180 / Math.PI;
-      
-      const cosAz = (Math.sin(decR) - Math.sin(latR) * sinAlt) / (Math.cos(latR) * Math.cos(Math.asin(sinAlt)));
-      let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
-      if (Math.sin(haR) > 0) az = 360 - az;
-      
+      const pos = calcStarAzAlt(ra, dec, lat, lon, siderealTime);
+      const alt = pos.alt;
+      const az = pos.az;
+
       if (alt > -2) {
-        plotBody(ctx, name, az, alt, shipHdg, viewSpan, w, h, horizonY, typeColors.star, 'star', 2.5);
+        const screenPos = plotBody(ctx, name, az, alt, shipHdg, viewSpan, w, h, horizonY, typeColors.star, 'star', 2.5);
+
+        if (screenPos) {
+          celestialBodies.push({
+            name, type: 'star', az, alt,
+            x: screenPos.x, y: screenPos.y, r: 8,
+            constellation, bayer, magnitude: mag,
+            ra, dec
+          });
+        }
+
         if (alt > 5) {
           const relBrg = ((az - shipHdg + 360) % 360);
           const side = relBrg <= 180 ? (relBrg < 10 ? 'AHEAD' : 'STBD') : (relBrg > 350 ? 'AHEAD' : 'PORT');
@@ -1498,27 +1722,57 @@ function renderCelestial() {
       }
     } catch(e) {}
   });
-  
-  // Sort by altitude descending
+
+  // Draw extra constellation stars (smaller, dimmer)
+  CONSTELLATION_EXTRA_STARS.forEach(([name, ra, dec]) => {
+    try {
+      const pos = calcStarAzAlt(ra, dec, lat, lon, siderealTime);
+      if (pos.alt > -2) {
+        plotBody(ctx, '', pos.az, pos.alt, shipHdg, viewSpan, w, h, horizonY, typeColors.star + '88', 'star', 1.5);
+      }
+    } catch(e) {}
+  });
+
+  // Draw constellation labels near center of visible lines
+  const constellationCenters = {};
+  CONSTELLATION_LINES.forEach(([s1, s2]) => {
+    const star1 = allStars[s1];
+    const star2 = allStars[s2];
+    if (!star1 || !star2) return;
+    // Determine constellation name from navStars
+    const navStar = NAV_STARS.find(s => s[0] === s1 || s[0] === s2);
+    if (!navStar) return;
+    const cName = navStar[4];
+    if (!constellationCenters[cName]) constellationCenters[cName] = { xs: [], ys: [] };
+    const p1 = bodyScreenPos(star1.az, star1.alt, shipHdg, viewSpan, w, horizonY);
+    const p2 = bodyScreenPos(star2.az, star2.alt, shipHdg, viewSpan, w, horizonY);
+    if (p1) { constellationCenters[cName].xs.push(p1.x); constellationCenters[cName].ys.push(p1.y); }
+    if (p2) { constellationCenters[cName].xs.push(p2.x); constellationCenters[cName].ys.push(p2.y); }
+  });
+
+  ctx.font = '9px IBM Plex Sans';
+  ctx.fillStyle = nightMode ? '#552222' : '#3a5070';
+  ctx.textAlign = 'center';
+  Object.entries(constellationCenters).forEach(([name, pts]) => {
+    if (pts.xs.length < 2) return;
+    const cx = pts.xs.reduce((a,b)=>a+b,0) / pts.xs.length;
+    const cy = pts.ys.reduce((a,b)=>a+b,0) / pts.ys.length;
+    if (cx > 10 && cx < w - 10 && cy > 20 && cy < h - 20) {
+      ctx.fillText(name, cx, cy - 12);
+    }
+  });
+
   document.getElementById('celestialList').innerHTML = listHtml.join('<br>');
 }
 
 function plotBody(ctx, name, az, alt, shipHdg, viewSpan, w, h, horizonY, color, type, size) {
-  const leftBearing = (shipHdg - viewSpan / 2 + 360) % 360;
-  let relB = ((az - leftBearing + 360) % 360);
-  if (relB > viewSpan + 10) return;
-  
-  const x = (relB / viewSpan) * w;
-  // Altitude mapping: 0° at horizon, 90° at top
-  const maxAlt = 90;
-  const y = horizonY - (alt / maxAlt) * (horizonY - 25);
-  
-  if (x < -20 || x > w + 20) return;
-  
-  // Draw body
+  const pos = bodyScreenPos(az, alt, shipHdg, viewSpan, w, horizonY);
+  if (!pos) return null;
+
+  const { x, y } = pos;
+
   ctx.beginPath();
   if (type === 'sun') {
-    // Sun glow
     const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
     glow.addColorStop(0, color + 'aa');
     glow.addColorStop(1, color + '00');
@@ -1527,16 +1781,106 @@ function plotBody(ctx, name, az, alt, shipHdg, viewSpan, w, h, horizonY, color, 
     ctx.fill();
     ctx.beginPath();
   }
-  
+
   ctx.arc(x, y, size, 0, Math.PI * 2);
   ctx.fillStyle = alt < 0 ? color + '44' : color;
   ctx.fill();
-  
-  // Label
-  ctx.font = (type === 'star' ? '8px' : '10px') + ' JetBrains Mono';
-  ctx.fillStyle = alt < 0 ? color + '66' : color;
-  ctx.textAlign = 'center';
-  ctx.fillText(name, x, y - size - 4);
+
+  if (name) {
+    ctx.font = (type === 'star' ? '8px' : '10px') + ' JetBrains Mono';
+    ctx.fillStyle = alt < 0 ? color + '66' : color;
+    ctx.textAlign = 'center';
+    ctx.fillText(name, x, y - size - 4);
+  }
+
+  return { x, y };
+}
+
+// Star click handler
+function initCelestialClick() {
+  const canvas = document.getElementById('celestial-canvas');
+  if (!canvas) return;
+
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    let closest = null;
+    let minDist = Infinity;
+
+    celestialBodies.forEach(body => {
+      const dx = mx - body.x;
+      const dy = my - body.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < body.r + 10 && dist < minDist) {
+        minDist = dist;
+        closest = body;
+      }
+    });
+
+    if (closest) {
+      showStarPopup(closest, e.clientX, e.clientY);
+    } else {
+      closeStarPopup();
+    }
+  });
+}
+
+function showStarPopup(body, clickX, clickY) {
+  const popup = document.getElementById('starDetailPopup');
+  const title = document.getElementById('starPopupTitle');
+  const content = document.getElementById('starPopupContent');
+
+  const typeLabel = body.type === 'star' ? '★ Star' : body.type === 'planet' ? '● Planet' : body.type === 'sun' ? '☀ Sun' : '☽ Moon';
+  const typeColor = body.type === 'star' ? 'var(--star-color)' : body.type === 'planet' ? 'var(--planet-color)' : body.type === 'sun' ? 'var(--sun-color)' : 'var(--moon-color)';
+
+  title.textContent = body.name;
+  title.style.color = typeColor;
+
+  let rows = `
+    <div class="popup-row"><span class="popup-label">Type</span><span class="popup-value">${typeLabel}</span></div>
+    <div class="popup-row"><span class="popup-label">Altitude</span><span class="popup-value">${body.alt.toFixed(2)}°</span></div>
+    <div class="popup-row"><span class="popup-label">Azimuth (True)</span><span class="popup-value">${body.az.toFixed(2)}°</span></div>
+  `;
+
+  if (body.type === 'star') {
+    rows += `
+      <div class="popup-row"><span class="popup-label">Constellation</span><span class="popup-value">${body.constellation}</span></div>
+      <div class="popup-row"><span class="popup-label">Designation</span><span class="popup-value">${body.bayer}</span></div>
+      <div class="popup-row"><span class="popup-label">Magnitude</span><span class="popup-value">${typeof body.magnitude === 'number' ? body.magnitude.toFixed(2) : body.magnitude}</span></div>
+    `;
+    if (body.ra !== undefined) {
+      const raH = Math.floor(body.ra / 15);
+      const raM = ((body.ra / 15 - raH) * 60).toFixed(1);
+      rows += `<div class="popup-row"><span class="popup-label">RA (SHA)</span><span class="popup-value">${body.ra.toFixed(1)}° (${raH}h ${raM}m)</span></div>`;
+      rows += `<div class="popup-row"><span class="popup-label">Declination</span><span class="popup-value">${body.dec >= 0 ? '+' : ''}${body.dec.toFixed(2)}°</span></div>`;
+    }
+    // Sextant note
+    if (body.alt > 10 && body.alt < 70) {
+      rows += `<div class="popup-row" style="border:none;color:var(--accent);font-weight:600"><span>Good for celestial navigation</span></div>`;
+    }
+  } else if (body.extra) {
+    rows += `<div class="popup-row"><span class="popup-label">Category</span><span class="popup-value">${body.extra}</span></div>`;
+  }
+
+  content.innerHTML = rows;
+
+  // Position popup near click
+  popup.style.display = 'block';
+  const pw = popup.offsetWidth;
+  const ph = popup.offsetHeight;
+  let px = clickX + 10;
+  let py = clickY - ph / 2;
+  if (px + pw > window.innerWidth - 10) px = clickX - pw - 10;
+  if (py < 10) py = 10;
+  if (py + ph > window.innerHeight - 10) py = window.innerHeight - ph - 10;
+  popup.style.left = px + 'px';
+  popup.style.top = py + 'px';
+}
+
+function closeStarPopup() {
+  document.getElementById('starDetailPopup').style.display = 'none';
 }
 
 function useLiveHeading() {
@@ -1678,44 +2022,113 @@ function stopReceiving() {
 }
 
 // ============================================================
-// POSITION COMPARE
+// POSITION COMPARE (Auto-format: type 22345 → 22°34.5')
 // ============================================================
-function parseCoordInput(str) {
-  str = str.trim().toUpperCase();
-  // Try DD°MM.MMM'N format
-  let m = str.match(/(\d+)[°]?\s*(\d+\.?\d*)['\s]*([NSEW]?)/);
-  if (m) {
-    let deg = parseInt(m[1]) + parseFloat(m[2]) / 60;
-    if (m[3] === 'S' || m[3] === 'W') deg = -deg;
-    return deg;
+function autoFormatCoord(input, type) {
+  // Strip non-digits and dots
+  let raw = input.value.replace(/[^0-9.]/g, '');
+  input.value = raw;
+
+  const parsed = parseRawCoord(raw, type);
+  const formatEl = document.getElementById(type === 'lat' ? 'shipLatFormatted' : 'shipLonFormatted');
+
+  if (parsed !== null) {
+    const deg = Math.floor(parsed);
+    const min = (parsed - deg) * 60;
+    if (type === 'lat') {
+      formatEl.textContent = deg.toString().padStart(2, '0') + '°' + min.toFixed(3).padStart(6, '0') + "'";
+    } else {
+      formatEl.textContent = deg.toString().padStart(3, '0') + '°' + min.toFixed(3).padStart(6, '0') + "'";
+    }
+    formatEl.style.color = 'var(--accent)';
+  } else {
+    formatEl.textContent = type === 'lat' ? "--°--.---'" : "---°--.---'";
+    formatEl.style.color = 'var(--text-dim)';
   }
-  // Try decimal
-  let val = parseFloat(str);
-  return isNaN(val) ? null : val;
+}
+
+function parseRawCoord(raw, type) {
+  // Auto-format: digits are interpreted as DDMMm (lat) or DDDMMm (lon)
+  // e.g. lat: "22345" → 22 deg 34.5 min, "221234" → 22 deg 12.34 min
+  // e.g. lon: "0551234" → 055 deg 12.34 min, "55123" → 055 deg 1.23 min
+  if (!raw || raw.length < 3) return null;
+
+  // If input contains a dot, split on it
+  if (raw.includes('.')) {
+    const parts = raw.split('.');
+    const intPart = parts[0];
+    const decPart = parts[1] || '';
+
+    const degDigits = type === 'lat' ? 2 : 3;
+    if (intPart.length < degDigits + 1) return null;
+
+    const deg = parseInt(intPart.substring(0, degDigits));
+    const minStr = intPart.substring(degDigits) + '.' + decPart;
+    const min = parseFloat(minStr);
+
+    if (isNaN(deg) || isNaN(min) || min >= 60) return null;
+    if (type === 'lat' && deg > 90) return null;
+    if (type === 'lon' && deg > 180) return null;
+
+    return deg + min / 60;
+  }
+
+  // No dot: interpret based on length
+  // For lat (2 deg digits): "22345" → deg=22, min=34.5  (last digit is 0.1 min)
+  // For lon (3 deg digits): "0551234" → deg=055, min=12.34
+  const degDigits = type === 'lat' ? 2 : 3;
+  if (raw.length < degDigits + 1) return null;
+
+  const deg = parseInt(raw.substring(0, degDigits));
+  const minDigits = raw.substring(degDigits);
+
+  // First 2 digits of minDigits are whole minutes, rest are decimal
+  let min;
+  if (minDigits.length <= 2) {
+    min = parseInt(minDigits);
+  } else {
+    const wholeMin = minDigits.substring(0, 2);
+    const decMin = minDigits.substring(2);
+    min = parseFloat(wholeMin + '.' + decMin);
+  }
+
+  if (isNaN(deg) || isNaN(min) || min >= 60) return null;
+  if (type === 'lat' && deg > 90) return null;
+  if (type === 'lon' && deg > 180) return null;
+
+  return deg + min / 60;
 }
 
 function comparePositions() {
-  const shipLat = parseCoordInput(document.getElementById('shipLat').value);
-  const shipLon = parseCoordInput(document.getElementById('shipLon').value);
-  
+  const latRaw = document.getElementById('shipLatRaw').value.replace(/[^0-9.]/g, '');
+  const lonRaw = document.getElementById('shipLonRaw').value.replace(/[^0-9.]/g, '');
+  const latDir = document.getElementById('shipLatNS').value;
+  const lonDir = document.getElementById('shipLonEW').value;
+
+  let shipLat = parseRawCoord(latRaw, 'lat');
+  let shipLon = parseRawCoord(lonRaw, 'lon');
+
   if (shipLat == null || shipLon == null || STATE.lat == null) {
     document.getElementById('compareDiff').style.display = 'block';
     document.getElementById('compareDiff').textContent = 'Enter valid ship position and wait for GPS fix';
     document.getElementById('compareDiff').className = 'compare-diff warn';
     return;
   }
-  
+
+  if (latDir === 'S') shipLat = -shipLat;
+  if (lonDir === 'W') shipLon = -shipLon;
+
   // Haversine distance
   const R = 6371000;
   const dLat = (STATE.lat - shipLat) * Math.PI / 180;
   const dLon = (STATE.lon - shipLon) * Math.PI / 180;
   const a = Math.sin(dLat/2)**2 + Math.cos(shipLat*Math.PI/180) * Math.cos(STATE.lat*Math.PI/180) * Math.sin(dLon/2)**2;
   const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  
+
   const distNM = dist / 1852;
   const el = document.getElementById('compareDiff');
   el.style.display = 'block';
-  
+
   if (dist < 100) {
     el.className = 'compare-diff ok';
     el.textContent = `Difference: ${dist.toFixed(0)}m (${distNM.toFixed(2)} NM) — Positions agree`;
@@ -1791,6 +2204,7 @@ window.addEventListener('load', () => {
   applySettings();
   startGeolocation();
   initCompass();
+  initCelestialClick();
   
   // Clock updater
   setInterval(updateClock, 1000);
@@ -1819,3 +2233,4 @@ window.addEventListener('load', () => {
 </script>
 </body>
 </html>
+<!-- updated -->
