@@ -107,6 +107,11 @@ function onPosition(pos) {
   var warn = document.getElementById('gpsWarning');
   warn.classList.toggle('show', STATE.accuracy > threshold);
 
+  // Spoofing detection — check every position update
+  if (typeof recordPositionForSpoofCheck === 'function') {
+    recordPositionForSpoofCheck(STATE.lat, STATE.lon, STATE.sogMS, STATE.cogGPS, STATE.alt, STATE.compassHeading);
+  }
+
   // Track trail
   if (getSettings().trackTrail && STATE.lat) {
     STATE.trackPoints.push([STATE.lat, STATE.lon]);

@@ -41,7 +41,15 @@ var STATE = {
   weatherData: null,
   weatherLastFetch: 0,
   // Search
-  searchTimeout: null
+  searchTimeout: null,
+  // Dead Reckoning map objects
+  drMarker: null,
+  drCircle: null,
+  // Celestial fix
+  celestialFixMarker: null,
+  // IP Geolocation
+  ipGeoMarker: null,
+  ipGeoCircle: null
 };
 
 function getSettings() {
