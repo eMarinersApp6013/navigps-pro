@@ -39,7 +39,7 @@ function fetchWeather() {
   });
 }
 
-var weatherExpanded = false;
+var weatherExpanded = true;
 function toggleWeatherExpand() {
   weatherExpanded = !weatherExpanded;
   var el = document.getElementById('weatherExpanded');
@@ -85,8 +85,8 @@ function displayWeather() {
   if (compactEl) compactEl.innerHTML = html;
   panel.style.display = 'block';
 
-  // Update compass if expanded
-  if (weatherExpanded) updateWeatherCompass();
+  // Always update compass
+  updateWeatherCompass();
 }
 
 function updateWeatherCompass() {

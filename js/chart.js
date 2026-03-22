@@ -123,6 +123,7 @@ function fetchDepthAtShip() {
       updateUKC();
     }
   }).catch(function() {});
+}
 
 function updateChartLayers() {
   if (!STATE.map) return;

@@ -193,6 +193,15 @@ function connectToPeer(peerId, code) {
     STATE.remoteMode = true;
     document.getElementById('remoteBadge').classList.add('show');
     document.getElementById('remoteCodeLabel').textContent = code;
+
+    // Clear any GPS LOST / warning states from local GPS failure
+    STATE.gpsLost = false;
+    document.getElementById('gpsLostBanner').classList.remove('show');
+    document.getElementById('gpsWarning').classList.remove('show');
+    document.getElementById('tab-nav').classList.remove('gps-frozen');
+    var lk = document.getElementById('lastKnownLabel');
+    if (lk) lk.style.display = 'none';
+    document.getElementById('gpsStatusDot').className = 'status-dot active';
   });
 
   conn.on('data', function(data) {
@@ -235,6 +244,22 @@ function onRemotePositionData(d) {
   STATE.magVar = d['var'];
   STATE.alt = d.alt;
   STATE.lastGpsTimestamp = Date.now();
+
+  // Clear GPS LOST state — we have valid remote data
+  if (STATE.gpsLost) {
+    STATE.gpsLost = false;
+    document.getElementById('tab-nav').classList.remove('gps-frozen');
+    document.getElementById('gpsLostBanner').classList.remove('show');
+    var lk = document.getElementById('lastKnownLabel');
+    if (lk) lk.style.display = 'none';
+  }
+
+  // Clear accuracy warning — remote data is valid
+  var warn = document.getElementById('gpsWarning');
+  if (warn) warn.classList.remove('show');
+
+  // Show GPS as active (remote-driven)
+  document.getElementById('gpsStatusDot').className = 'status-dot active';
 
   // Track trail from remote
   if (getSettings().trackTrail && STATE.lat) {
