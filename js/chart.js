@@ -48,7 +48,7 @@ function initMap() {
     iconSize: [24, 24], iconAnchor: [12, 12]
   });
   STATE.marker = L.marker([25.0, 55.0], { icon: vesselIcon }).addTo(STATE.map);
-  STATE.trackLine = L.polyline([], { color: '#00e67688', weight: 2 }).addTo(STATE.map);
+  STATE.trackLine = L.polyline([], { color: '#00e67688', weight: 2, smoothFactor: 1 }).addTo(STATE.map);
   STATE.accCircle = L.circle([25.0, 55.0], { radius: 50, color: '#2a7fff44', fillColor: '#2a7fff22', weight: 1 }).addTo(STATE.map);
 
   // Port click handler via Overpass API
@@ -150,7 +150,19 @@ function updateMap() {
 
   STATE.accCircle.setLatLng(pos);
   if (STATE.accuracy) STATE.accCircle.setRadius(STATE.accuracy);
-  if (getSettings().trackTrail) STATE.trackLine.setLatLngs(STATE.trackPoints);
+  // Track trail: split at null entries (position jumps) into separate segments
+  if (getSettings().trackTrail) {
+    var segments = [], seg = [];
+    for (var i = 0; i < STATE.trackPoints.length; i++) {
+      if (STATE.trackPoints[i] === null) {
+        if (seg.length > 0) { segments.push(seg); seg = []; }
+      } else {
+        seg.push(STATE.trackPoints[i]);
+      }
+    }
+    if (seg.length > 0) segments.push(seg);
+    STATE.trackLine.setLatLngs(segments);
+  }
 
   if (!mapCentered) {
     STATE.map.setView(pos, 14);
@@ -322,6 +334,11 @@ function doChartSearch(q) {
 /* ============================================================
    HOME BUTTON — Fly back to ship position
    ============================================================ */
+function clearTrackTrail() {
+  STATE.trackPoints = [];
+  if (STATE.trackLine) STATE.trackLine.setLatLngs([]);
+}
+
 function chartGoHome() {
   if (!STATE.map) return;
   var lat = STATE.manualMode && STATE.manualLat != null ? STATE.manualLat : STATE.lat;

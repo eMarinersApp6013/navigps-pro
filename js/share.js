@@ -126,12 +126,72 @@ function startReceiving() {
   document.getElementById('codeInput').focus();
 }
 
+/* Connection history — save/load last connected codes */
+function saveConnectionHistory(code) {
+  try {
+    var hist = JSON.parse(localStorage.getItem('navigps_conn_history') || '[]');
+    // Remove if already exists, add to front
+    hist = hist.filter(function(h) { return h.code !== code; });
+    hist.unshift({ code: code, ts: Date.now() });
+    if (hist.length > 5) hist = hist.slice(0, 5); // keep last 5
+    localStorage.setItem('navigps_conn_history', JSON.stringify(hist));
+    renderConnectionHistory();
+  } catch(e) {}
+}
+
+function getConnectionHistory() {
+  try {
+    return JSON.parse(localStorage.getItem('navigps_conn_history') || '[]');
+  } catch(e) { return []; }
+}
+
+function renderConnectionHistory() {
+  var el = document.getElementById('connHistory');
+  if (!el) return;
+  var hist = getConnectionHistory();
+  if (hist.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  var html = '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;font-weight:600">Recent Connections</div>';
+  html += hist.map(function(h) {
+    var ago = formatTimeAgo(h.ts);
+    return '<button class="btn btn-sm" style="margin:2px 4px 2px 0;font-family:\'JetBrains Mono\',monospace;font-size:14px;letter-spacing:2px" onclick="quickConnect(\'' + h.code + '\')">' + h.code + '</button>' +
+      '<span style="font-size:9px;color:var(--text-dim);margin-right:8px">' + ago + '</span>';
+  }).join('');
+  el.innerHTML = html;
+}
+
+function formatTimeAgo(ts) {
+  var diff = Date.now() - ts;
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  var hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + 'h ago';
+  var days = Math.floor(hours / 24);
+  return days + 'd ago';
+}
+
+function quickConnect(code) {
+  document.getElementById('codeInput').value = code;
+  startReceiving();
+  setTimeout(function() {
+    document.getElementById('codeInput').value = code;
+    connectToSender();
+  }, 100);
+}
+
 function connectToSender() {
   var code = document.getElementById('codeInput').value.trim();
   if (code.length !== 6) {
     document.getElementById('receiveStatus').textContent = 'Enter exactly 6 digits';
     return;
   }
+
+  // Save to history
+  saveConnectionHistory(code);
 
   var peerId = 'navigps-' + code;
   document.getElementById('receiveStatus').textContent = 'Connecting...';
@@ -261,9 +321,20 @@ function onRemotePositionData(d) {
   // Show GPS as active (remote-driven)
   document.getElementById('gpsStatusDot').className = 'status-dot active';
 
-  // Track trail from remote
+  // Track trail from remote — filter jumps to prevent lines over land
   if (getSettings().trackTrail && STATE.lat) {
-    STATE.trackPoints.push([STATE.lat, STATE.lon]);
+    var addPoint = true;
+    if (STATE.trackPoints.length > 0) {
+      var last = STATE.trackPoints[STATE.trackPoints.length - 1];
+      if (last !== null) {
+        var jumpDist = haversineDistance(last[0], last[1], STATE.lat, STATE.lon);
+        if (jumpDist > 2000) {
+          addPoint = false;
+          STATE.trackPoints.push(null);
+        }
+      }
+    }
+    if (addPoint) STATE.trackPoints.push([STATE.lat, STATE.lon]);
     if (STATE.trackPoints.length > 500) STATE.trackPoints.shift();
   }
 
