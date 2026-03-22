@@ -75,6 +75,13 @@ window.addEventListener('load', function() {
   initCompass();
   initCelestialClick();
 
+  // Initialize anti-spoofing features
+  if (typeof populateSightBodies === 'function') populateSightBodies();
+  if (typeof restoreDR === 'function') restoreDR();
+
+  // Auto-fetch IP geolocation on load for spoofing cross-check
+  setTimeout(function() { if (typeof fetchIPGeolocation === 'function') fetchIPGeolocation(); }, 5000);
+
   // Clock updater (clock only, not display — display is event-driven now)
   setInterval(updateClock, 1000);
   updateClock();
