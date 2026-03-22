@@ -132,13 +132,25 @@ function renderCelestial() {
   if (!canvas) return;
 
   var parent = canvas.parentElement;
-  // Fix black page: ensure canvas has valid dimensions
-  var pw = parent.clientWidth || window.innerWidth - 16;
-  var ph = parent.clientHeight || 400;
+  // Fix blank page: force valid dimensions using multiple fallbacks
+  var pw = parent.clientWidth || parent.offsetWidth || document.getElementById('tab-celestial').clientWidth || window.innerWidth;
+  var ph = parent.clientHeight || parent.offsetHeight || 0;
+  // Ensure minimum usable dimensions
   if (pw < 100) pw = window.innerWidth - 16;
-  if (ph < 100) ph = 400;
+  if (ph < 100) {
+    // Calculate available height: viewport - header - inputs - nav - info panel
+    var tabEl = document.getElementById('tab-celestial');
+    if (tabEl) {
+      var tabH = tabEl.clientHeight || window.innerHeight - 120;
+      ph = Math.max(300, tabH - 200);
+    } else {
+      ph = Math.max(300, window.innerHeight - 300);
+    }
+  }
   canvas.width = pw;
   canvas.height = ph;
+  canvas.style.width = pw + 'px';
+  canvas.style.height = ph + 'px';
 
   // Update sun details if in sun mode
   if (celestialMode === 'sun') updateSunDetails();
@@ -399,6 +411,17 @@ function showStarPopup(body, clickX, clickY) {
       rows += '<div class="popup-row"><span class="popup-label">RA (SHA)</span><span class="popup-value">' + body.ra.toFixed(1) + '\u00B0 (' + raH + 'h ' + raM + 'm)</span></div>';
       rows += '<div class="popup-row"><span class="popup-label">Declination</span><span class="popup-value">' + (body.dec >= 0 ? '+' : '') + body.dec.toFixed(2) + '\u00B0</span></div>';
     }
+    // True sextant altitude for stars
+    var hoe = parseFloat(document.getElementById('heightOfEye').value) || 15;
+    var dip = 1.76 * Math.sqrt(hoe);
+    var starRefr = 0;
+    if (body.alt > -1) {
+      starRefr = 1.0 / Math.tan((body.alt + 7.31 / (body.alt + 4.4)) * Math.PI / 180);
+    }
+    var starTrueAlt = body.alt - (dip / 60) - (starRefr / 60);
+    rows += '<div class="popup-row"><span class="popup-label">Sextant Alt (True)</span><span class="popup-value" style="color:#ff8a65;font-weight:600">' + starTrueAlt.toFixed(2) + '\u00B0</span></div>';
+    rows += '<div class="popup-row"><span class="popup-label">Dip / Refr</span><span class="popup-value">-' + dip.toFixed(1) + "' / -" + starRefr.toFixed(1) + "'</span></div>";
+
     if (body.alt > 10 && body.alt < 70) {
       rows += '<div class="popup-row" style="border:none;color:var(--accent);font-weight:600"><span>Good for celestial navigation</span></div>';
     }
@@ -514,6 +537,26 @@ function updateSunDetails() {
           nautDusk.date.getUTCHours().toString().padStart(2,'0') + ':' + nautDusk.date.getUTCMinutes().toString().padStart(2,'0') + ' UTC';
       }
     } catch(e) { document.getElementById('sunTwilightNaut').textContent = 'N/A'; }
+
+    // True Sextant Altitude calculation
+    // Dip = 1.76 * sqrt(height of eye in meters) in arcminutes
+    var dip = 1.76 * Math.sqrt(hoe);
+    // Refraction (standard): R = 1/tan(alt + 7.31/(alt+4.4)) in arcminutes (approx for alt > 0)
+    var sunAltDeg = sunHor.altitude;
+    var refraction = 0;
+    if (sunAltDeg > -1) {
+      refraction = 1.0 / Math.tan((sunAltDeg + 7.31 / (sunAltDeg + 4.4)) * Math.PI / 180);
+    }
+    // Sun semi-diameter ~ 16.0' (varies 15.7' to 16.3')
+    var sd = 16.0;
+    // True (observed) altitude = apparent alt - dip - refraction + SD (lower limb)
+    var apparentAlt = sunAltDeg;
+    var trueAlt = apparentAlt - (dip / 60) - (refraction / 60) + (sd / 60);
+
+    document.getElementById('sunSextantAlt').textContent = trueAlt.toFixed(2) + '\u00B0';
+    document.getElementById('sunDip').textContent = '-' + dip.toFixed(1) + "'";
+    document.getElementById('sunRefraction').textContent = '-' + refraction.toFixed(1) + "'";
+    document.getElementById('sunSD').textContent = '+' + sd.toFixed(1) + "' (LL)";
 
   } catch(e) {
     console.log('Sun details error:', e);
