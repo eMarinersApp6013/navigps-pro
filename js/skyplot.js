@@ -3,6 +3,28 @@
    ============================================================ */
 var lastSatData = []; // Store for SNR chart
 
+// Constellation filter state (for anti-spoofing)
+var constellationFilter = { GPS: true, GLONASS: true, Galileo: true, BeiDou: true };
+
+function toggleConstellation(sys, btn) {
+  constellationFilter[sys] = !constellationFilter[sys];
+  btn.classList.toggle('on', constellationFilter[sys]);
+  btn.classList.toggle('off', !constellationFilter[sys]);
+
+  // Update spoofing status text
+  var enabled = Object.keys(constellationFilter).filter(function(k) { return constellationFilter[k]; });
+  var disabled = Object.keys(constellationFilter).filter(function(k) { return !constellationFilter[k]; });
+  var statusEl = document.getElementById('spoofingStatus');
+  if (disabled.length > 0) {
+    statusEl.textContent = 'Active: ' + enabled.join(', ') + ' | Disabled: ' + disabled.join(', ');
+    statusEl.style.color = 'var(--warning)';
+  } else {
+    statusEl.textContent = 'All constellations active';
+    statusEl.style.color = 'var(--accent)';
+  }
+  drawSkyPlot();
+}
+
 function drawSkyPlot() {
   var canvas = document.getElementById('skyplot-canvas');
   if (!canvas) return;
@@ -54,6 +76,8 @@ function drawSkyPlot() {
 
   sats.forEach(function(sat) {
     if (sat.el < 5) return;
+    // Apply constellation filter
+    if (!constellationFilter[sat.sys]) return;
     counts[sat.sys]++;
     // Simulate SNR: higher elevation = stronger signal (20-50 dBHz)
     var snr = Math.round(20 + (sat.el / 90) * 28 + (Math.random() * 4 - 2));
@@ -76,7 +100,7 @@ function drawSkyPlot() {
   document.getElementById('galCount').textContent = counts.Galileo;
   document.getElementById('bdsCount').textContent = counts.BeiDou;
 
-  var visibleSats = sats.filter(function(s) { return s.el >= 10; });
+  var visibleSats = sats.filter(function(s) { return s.el >= 10 && constellationFilter[s.sys]; });
   if (visibleSats.length >= 4) {
     var dop = computeDOP(visibleSats);
     document.getElementById('hdopDisplay').textContent = dop.hdop.toFixed(1);

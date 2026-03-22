@@ -19,7 +19,10 @@ function switchTab(tab, btn) {
     setTimeout(function() { STATE.map.invalidateSize(); }, 100);
   }
   if (tab === 'skyplot') setTimeout(drawSkyPlot, 100);
-  if (tab === 'celestial') setTimeout(renderCelestial, 100);
+  if (tab === 'celestial') setTimeout(function() {
+    renderCelestial();
+    if (celestialMode === 'sun') updateSunDetails();
+  }, 150);
   if (tab === 'chart') fetchWeather();
 }
 

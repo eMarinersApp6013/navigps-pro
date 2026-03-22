@@ -199,3 +199,130 @@ function doChartSearch(q) {
     });
   }).catch(function() {});
 }
+
+/* ============================================================
+   HOME BUTTON — Fly back to ship position
+   ============================================================ */
+function chartGoHome() {
+  if (!STATE.map) return;
+  var lat = STATE.manualMode && STATE.manualLat != null ? STATE.manualLat : STATE.lat;
+  var lon = STATE.manualMode && STATE.manualLon != null ? STATE.manualLon : STATE.lon;
+  if (lat != null && lon != null) {
+    STATE.map.flyTo([lat, lon], 14, { duration: 1 });
+  }
+}
+
+/* ============================================================
+   DEPTH ZOOM — Auto-zoom to best scale for viewing depth data
+   ============================================================ */
+function chartDepthZoom() {
+  if (!STATE.map) return;
+  var lat = STATE.manualMode && STATE.manualLat != null ? STATE.manualLat : STATE.lat;
+  var lon = STATE.manualMode && STATE.manualLon != null ? STATE.manualLon : STATE.lon;
+  if (lat != null && lon != null) {
+    // Zoom level 11-12 is optimal for GEBCO depth contour visibility
+    STATE.map.flyTo([lat, lon], 11, { duration: 1 });
+    // Ensure depth layer is on
+    if (!STATE.map.hasLayer(STATE.depthLayer)) {
+      STATE.depthLayer.addTo(STATE.map);
+      saveSetting('depthLayer', true);
+      document.getElementById('toggleDepth').classList.add('on');
+    }
+  }
+}
+
+/* ============================================================
+   UKC (Under Keel Clearance) CALCULATOR
+   ============================================================ */
+var chartDepthAtCursor = null;
+
+function updateUKC() {
+  var draft = parseFloat(document.getElementById('vesselDraft').value);
+  var ukcEl = document.getElementById('ukcDisplay');
+  var warnEl = document.getElementById('ukcWarning');
+  if (isNaN(draft) || draft <= 0 || chartDepthAtCursor == null) {
+    ukcEl.textContent = '--';
+    ukcEl.style.color = '';
+    warnEl.style.display = 'none';
+    return;
+  }
+  var ukc = chartDepthAtCursor - draft;
+  ukcEl.textContent = ukc.toFixed(1);
+  if (ukc < 2) {
+    ukcEl.style.color = 'var(--danger)';
+    warnEl.style.display = 'block';
+  } else if (ukc < 5) {
+    ukcEl.style.color = 'var(--warning)';
+    warnEl.style.display = 'none';
+  } else {
+    ukcEl.style.color = 'var(--accent)';
+    warnEl.style.display = 'none';
+  }
+}
+
+/* ============================================================
+   LOAD NEARBY PORTS (Overpass API) — Highlighted clickable markers
+   ============================================================ */
+var portMarkers = [];
+
+function loadNearbyPorts() {
+  if (!STATE.map) return;
+  var center = STATE.map.getCenter();
+  var bounds = STATE.map.getBounds();
+  var bbox = bounds.getSouth().toFixed(4) + ',' + bounds.getWest().toFixed(4) + ',' +
+             bounds.getNorth().toFixed(4) + ',' + bounds.getEast().toFixed(4);
+
+  var query = '[out:json][timeout:15];(' +
+    'node["seamark:type"~"harbour|anchorage|mooring"](' + bbox + ');' +
+    'node["harbour"](' + bbox + ');' +
+    'node["leisure"="marina"](' + bbox + ');' +
+    'node["place"="city"]["population"](' + bbox + ');' +
+    ');out body 50;';
+
+  var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+
+  // Clear old markers
+  portMarkers.forEach(function(m) { STATE.map.removeLayer(m); });
+  portMarkers = [];
+
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    if (!data.elements || data.elements.length === 0) return;
+
+    data.elements.forEach(function(el) {
+      if (!el.lat || !el.lon) return;
+      var tags = el.tags || {};
+      var name = tags.name || tags['seamark:name'] || tags['harbour:name'] || 'Unknown';
+
+      // Create highlighted label marker
+      var icon = L.divIcon({
+        className: '',
+        html: '<div class="port-marker-label">' + name + '</div>',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
+      });
+
+      var marker = L.marker([el.lat, el.lon], { icon: icon }).addTo(STATE.map);
+      marker.on('click', function() {
+        showPortPopup(el.lat, el.lon, tags, name);
+      });
+      portMarkers.push(marker);
+    });
+  }).catch(function() {});
+}
+
+function showPortPopup(lat, lon, tags, name) {
+  var html = '<b style="font-size:14px;color:#ff8a65">' + name + '</b><br>';
+  html += '<span style="font-size:11px;color:#888">' + lat.toFixed(4) + ', ' + lon.toFixed(4) + '</span><br>';
+  if (tags['seamark:harbour:category']) html += '<b>Type:</b> ' + tags['seamark:harbour:category'] + '<br>';
+  if (tags.vhf || tags['seamark:radio_station:channel']) html += '<b>VHF Ch:</b> ' + (tags.vhf || tags['seamark:radio_station:channel']) + '<br>';
+  if (tags['seamark:anchorage:category']) html += '<b>Anchorage:</b> ' + tags['seamark:anchorage:category'] + '<br>';
+  if (tags['seamark:pilot_boarding:category']) html += '<b>Pilot:</b> ' + tags['seamark:pilot_boarding:category'] + '<br>';
+  if (tags.description) html += '<b>Info:</b> ' + tags.description + '<br>';
+  if (tags.website) html += '<a href="' + tags.website + '" target="_blank" style="color:#2a7fff">Website</a><br>';
+  if (tags.phone) html += '<b>Phone:</b> ' + tags.phone + '<br>';
+
+  L.popup({ maxWidth: 300 })
+    .setLatLng([lat, lon])
+    .setContent(html)
+    .openOn(STATE.map);
+}

@@ -119,14 +119,8 @@ function onPosition(pos) {
   // Event-driven: refresh ALL displays immediately
   refreshAllDisplays();
 
-  // Send to peer if sharing
-  if (STATE.isSharing && STATE.conn && STATE.conn.open) {
-    STATE.conn.send(JSON.stringify({
-      type:'pos', lat:STATE.lat, lon:STATE.lon, acc:STATE.accuracy,
-      spd:STATE.sogMS, cog:STATE.cogGPS, hdg:STATE.compassHeading,
-      'var':STATE.magVar, alt:STATE.alt, ts:Date.now()
-    }));
-  }
+  // Send to peer if sharing (also sent on 2s interval from share.js)
+  sendPositionData();
 
   // Check anchor alarm
   if (STATE.anchorWatchActive) checkAnchorAlarm();
@@ -183,18 +177,32 @@ function onPositionError(err) {
 
 /* Refresh ALL displays (event-driven, called on every position update) */
 function refreshAllDisplays() {
+  // NAV tab — always update
   updateDisplay();
+
+  // CHART tab — update map marker even if not visible (so it's correct when switched)
   updateMap();
 
-  // Update active tab canvases
+  // SKYPLOT — update if visible
   if (document.getElementById('tab-skyplot').classList.contains('active')) {
     drawSkyPlot();
   }
+  // CELESTIAL — update if visible
   if (document.getElementById('tab-celestial').classList.contains('active')) {
     renderCelestial();
   }
-  // Update MOB distance if active
+  // MOB distance if active
   if (STATE.mobPosition) updateMOBDistance();
-  // Update anchor watch distance
+  // Anchor watch distance
   if (STATE.anchorWatchActive) updateAnchorDisplay();
+
+  // If in remote mode, ensure GPS status shows remote-driven
+  if (STATE.remoteMode) {
+    document.getElementById('gpsStatusDot').className = 'status-dot active';
+    var ageEl = document.getElementById('gpsAge');
+    if (ageEl) {
+      ageEl.textContent = 'REMOTE';
+      ageEl.style.color = 'var(--info, #2a7fff)';
+    }
+  }
 }
