@@ -4,6 +4,16 @@
    twilight sky colors, altitude grid circles
    ============================================================ */
 var celestialBodies = [];
+var celestialMode = 'stars'; // 'stars' or 'sun'
+
+function setCelestialMode(mode) {
+  celestialMode = mode;
+  document.getElementById('btnModeStars').classList.toggle('active', mode === 'stars');
+  document.getElementById('btnModeSun').classList.toggle('active', mode === 'sun');
+  document.getElementById('sunDetailsPanel').style.display = mode === 'sun' ? 'block' : 'none';
+  renderCelestial();
+  if (mode === 'sun') updateSunDetails();
+}
 
 var NAV_STARS = [
   ['Polaris',37.95,89.26,1.98,'Ursa Minor','\u03B1 UMi'],
@@ -122,9 +132,16 @@ function renderCelestial() {
   if (!canvas) return;
 
   var parent = canvas.parentElement;
-  var size = Math.min(parent.clientWidth, parent.clientHeight || 400);
-  canvas.width = parent.clientWidth;
-  canvas.height = parent.clientHeight || 400;
+  // Fix black page: ensure canvas has valid dimensions
+  var pw = parent.clientWidth || window.innerWidth - 16;
+  var ph = parent.clientHeight || 400;
+  if (pw < 100) pw = window.innerWidth - 16;
+  if (ph < 100) ph = 400;
+  canvas.width = pw;
+  canvas.height = ph;
+
+  // Update sun details if in sun mode
+  if (celestialMode === 'sun') updateSunDetails();
 
   var ctx = canvas.getContext('2d');
   var w = canvas.width, h = canvas.height;
@@ -397,5 +414,99 @@ function useLiveHeading() {
     document.getElementById('celestialHdg').value = Math.round(hdg);
     saveSetting('celestialHdg', Math.round(hdg).toString());
     renderCelestial();
+  }
+}
+
+/* ============================================================
+   SUN DETAILS (Sunrise, Sunset, LAN, Declination, GHA, EOT)
+   ============================================================ */
+function updateSunDetails() {
+  try {
+    var lat = STATE.manualMode && STATE.manualLat != null ? STATE.manualLat : (STATE.lat || 25.0);
+    var lon = STATE.manualMode && STATE.manualLon != null ? STATE.manualLon : (STATE.lon || 55.0);
+    var hoe = parseFloat(document.getElementById('heightOfEye').value) || 15;
+    var observer = new Astronomy.Observer(lat, lon, hoe);
+    var now = new Date();
+    var date = Astronomy.MakeTime(now);
+
+    // Current Sun position
+    var sunHor = Astronomy.Horizon(date, observer, 'Sun', 'normal');
+    document.getElementById('sunAlt').textContent = sunHor.altitude.toFixed(2) + '\u00B0';
+    document.getElementById('sunAz').textContent = sunHor.azimuth.toFixed(2) + '\u00B0';
+
+    // Sun declination & GHA
+    var sunEq = Astronomy.Equator('Sun', date, observer, true, true);
+    var dec = sunEq.dec;
+    document.getElementById('sunDec').textContent = (dec >= 0 ? '+' : '') + dec.toFixed(2) + '\u00B0';
+
+    // GHA = sidereal time * 15 - RA * 15 (approx)
+    var siderealTime = Astronomy.SiderealTime(date);
+    var gha = (siderealTime * 15 - sunEq.ra * 15 + 360) % 360;
+    var ghaD = Math.floor(gha);
+    var ghaM = ((gha - ghaD) * 60).toFixed(1);
+    document.getElementById('sunGHA').textContent = ghaD + '\u00B0 ' + ghaM + "'";
+
+    // Equation of Time (approximate)
+    // EOT = apparent solar time - mean solar time
+    var dayOfYear = Math.floor((now - new Date(now.getFullYear(),0,0)) / 86400000);
+    var B = (360/365) * (dayOfYear - 81) * Math.PI / 180;
+    var eot = 9.87 * Math.sin(2*B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+    var eotMin = Math.floor(Math.abs(eot));
+    var eotSec = Math.round((Math.abs(eot) - eotMin) * 60);
+    document.getElementById('sunEOT').textContent = (eot >= 0 ? '+' : '-') + eotMin + 'm ' + eotSec + 's';
+
+    // Sunrise/Sunset
+    try {
+      var rise = Astronomy.SearchRiseSet('Sun', observer, +1, date, 1);
+      if (rise) {
+        var rDate = rise.date;
+        document.getElementById('sunRise').textContent =
+          rDate.getUTCHours().toString().padStart(2,'0') + ':' +
+          rDate.getUTCMinutes().toString().padStart(2,'0') + ' UTC';
+      }
+    } catch(e) { document.getElementById('sunRise').textContent = 'N/A'; }
+
+    try {
+      var set = Astronomy.SearchRiseSet('Sun', observer, -1, date, 1);
+      if (set) {
+        var sDate = set.date;
+        document.getElementById('sunSet').textContent =
+          sDate.getUTCHours().toString().padStart(2,'0') + ':' +
+          sDate.getUTCMinutes().toString().padStart(2,'0') + ' UTC';
+      }
+    } catch(e) { document.getElementById('sunSet').textContent = 'N/A'; }
+
+    // Meridian passage (LAN) = 12:00 - EOT - longitude/15 hours offset
+    var lanHours = 12 - (eot / 60) - (lon / 15);
+    lanHours = ((lanHours % 24) + 24) % 24;
+    var lanH = Math.floor(lanHours);
+    var lanM = Math.round((lanHours - lanH) * 60);
+    document.getElementById('sunMeridian').textContent = lanH.toString().padStart(2,'0') + ':' + lanM.toString().padStart(2,'0') + ' UTC';
+
+    // Twilight times (civil -6°, nautical -12°)
+    try {
+      var civilDawn = Astronomy.SearchAltitude('Sun', observer, +1, date, 1, -6);
+      var civilDusk = Astronomy.SearchAltitude('Sun', observer, -1, date, 1, -6);
+      if (civilDawn && civilDusk) {
+        document.getElementById('sunTwilightCivil').textContent =
+          civilDawn.date.getUTCHours().toString().padStart(2,'0') + ':' + civilDawn.date.getUTCMinutes().toString().padStart(2,'0') +
+          ' / ' +
+          civilDusk.date.getUTCHours().toString().padStart(2,'0') + ':' + civilDusk.date.getUTCMinutes().toString().padStart(2,'0') + ' UTC';
+      }
+    } catch(e) { document.getElementById('sunTwilightCivil').textContent = 'N/A'; }
+
+    try {
+      var nautDawn = Astronomy.SearchAltitude('Sun', observer, +1, date, 1, -12);
+      var nautDusk = Astronomy.SearchAltitude('Sun', observer, -1, date, 1, -12);
+      if (nautDawn && nautDusk) {
+        document.getElementById('sunTwilightNaut').textContent =
+          nautDawn.date.getUTCHours().toString().padStart(2,'0') + ':' + nautDawn.date.getUTCMinutes().toString().padStart(2,'0') +
+          ' / ' +
+          nautDusk.date.getUTCHours().toString().padStart(2,'0') + ':' + nautDusk.date.getUTCMinutes().toString().padStart(2,'0') + ' UTC';
+      }
+    } catch(e) { document.getElementById('sunTwilightNaut').textContent = 'N/A'; }
+
+  } catch(e) {
+    console.log('Sun details error:', e);
   }
 }
