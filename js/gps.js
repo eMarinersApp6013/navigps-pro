@@ -112,9 +112,20 @@ function onPosition(pos) {
     recordPositionForSpoofCheck(STATE.lat, STATE.lon, STATE.sogMS, STATE.cogGPS, STATE.alt, STATE.compassHeading);
   }
 
-  // Track trail
+  // Track trail — filter out position jumps to prevent lines over land
   if (getSettings().trackTrail && STATE.lat) {
-    STATE.trackPoints.push([STATE.lat, STATE.lon]);
+    var addPoint = true;
+    if (STATE.trackPoints.length > 0) {
+      var last = STATE.trackPoints[STATE.trackPoints.length - 1];
+      var jumpDist = haversineDistance(last[0], last[1], STATE.lat, STATE.lon);
+      // Skip if jump > 2km in one fix (likely GPS glitch or spoofing)
+      if (jumpDist > 2000) {
+        addPoint = false;
+        // Insert null to break the polyline (prevents line over land)
+        STATE.trackPoints.push(null);
+      }
+    }
+    if (addPoint) STATE.trackPoints.push([STATE.lat, STATE.lon]);
     if (STATE.trackPoints.length > 500) STATE.trackPoints.shift();
   }
 

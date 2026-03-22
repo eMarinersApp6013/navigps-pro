@@ -39,7 +39,7 @@ html,body {
 
 #content { flex:1; overflow:hidden; position:relative; }
 .tab-panel { display:none; height:100%; overflow-y:auto; overflow-x:hidden; }
-.tab-panel.active { display:flex; flex-direction:column; }
+.tab-panel.active { display:flex; flex-direction:column; height:100%; overflow-y:auto; overflow-x:hidden; }
 
 #nav {
   display:flex; justify-content:space-around; align-items:center;

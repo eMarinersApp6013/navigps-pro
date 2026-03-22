@@ -39,7 +39,8 @@ function fetchWeather() {
   });
 }
 
-var weatherExpanded = true;
+// Default collapsed on mobile (screen width < 768px)
+var weatherExpanded = window.innerWidth >= 768;
 function toggleWeatherExpand() {
   weatherExpanded = !weatherExpanded;
   var el = document.getElementById('weatherExpanded');
@@ -85,8 +86,14 @@ function displayWeather() {
   if (compactEl) compactEl.innerHTML = html;
   panel.style.display = 'block';
 
+  // Respect collapsed state (default collapsed on mobile)
+  var expandedEl = document.getElementById('weatherExpanded');
+  var expandIcon = document.getElementById('weatherExpandIcon');
+  if (expandedEl) expandedEl.style.display = weatherExpanded ? 'block' : 'none';
+  if (expandIcon) expandIcon.textContent = weatherExpanded ? '\u25B2' : '\u25BC';
+
   // Always update compass
-  updateWeatherCompass();
+  if (weatherExpanded) updateWeatherCompass();
 }
 
 function updateWeatherCompass() {
@@ -119,10 +126,23 @@ function updateWeatherCompass() {
       var curLen = Math.min(35, 15 + curSpd * 20);
       currentArrowG.innerHTML = buildArrowSVG(curDir, curLen, '#ff8a65', curSpd.toFixed(1) + ' kn');
     } else {
-      // No current data from API — show note
       currentArrowG.innerHTML = '';
       var curDataEl = document.getElementById('weatherCurrentData');
       if (curDataEl) curDataEl.textContent = 'Ocean current data not available for this location';
+    }
+  }
+
+  // Swell arrow
+  var swellArrowG = document.getElementById('weatherSwellArrow');
+  if (swellArrowG && w.marine && w.marine.current) {
+    var swellDir = w.marine.current.swell_wave_direction;
+    var swellH = w.marine.current.swell_wave_height;
+    if (swellDir != null && swellH != null && swellH > 0) {
+      var swellTo = (swellDir + 180) % 360; // swell comes FROM this direction
+      var swellLen = Math.min(35, 15 + swellH * 6);
+      swellArrowG.innerHTML = buildArrowSVG(swellTo, swellLen, '#7e57c2', swellH.toFixed(1) + 'm');
+    } else {
+      swellArrowG.innerHTML = '';
     }
   }
 }

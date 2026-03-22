@@ -42,6 +42,9 @@ var STATE = {
   weatherLastFetch: 0,
   // Search
   searchTimeout: null,
+  // Depth at ship position
+  depthAtShip: null,
+  depthLabel: null,
   // Dead Reckoning map objects
   drMarker: null,
   drCircle: null,

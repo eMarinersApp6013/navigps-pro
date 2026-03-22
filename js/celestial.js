@@ -132,18 +132,32 @@ function renderCelestial() {
   if (!canvas) return;
 
   var wrap = document.getElementById('celestialCanvasWrap');
-  // Calculate width from wrapper, height from available tab space
-  var pw = (wrap ? wrap.clientWidth : 0) || window.innerWidth - 16;
   var tabEl = document.getElementById('tab-celestial');
-  var tabH = tabEl ? tabEl.clientHeight : window.innerHeight - 120;
-  var ph = Math.max(350, tabH - 240);
-  if (pw < 100) pw = window.innerWidth - 16;
 
+  // Robust dimension calculation — use multiple fallbacks
+  var pw = 0;
+  if (wrap && wrap.offsetWidth > 0) pw = wrap.offsetWidth;
+  else if (tabEl && tabEl.offsetWidth > 0) pw = tabEl.offsetWidth - 16;
+  else if (canvas.parentElement && canvas.parentElement.offsetWidth > 0) pw = canvas.parentElement.offsetWidth;
+  if (pw < 100) pw = window.innerWidth - 16;
+  if (pw < 100) pw = 360; // absolute minimum
+
+  // Height: use available space minus controls above
+  var tabH = 0;
+  if (tabEl && tabEl.offsetHeight > 0) tabH = tabEl.offsetHeight;
+  else tabH = window.innerHeight - 120;
+  // Account for controls above canvas (STARS/SUN toggle + heading inputs ~120px, sun panel if shown, cards below)
+  var controlsH = 120;
+  if (celestialMode === 'sun') controlsH += 280; // sun details panel
+  var ph = Math.max(300, Math.min(tabH - controlsH - 80, pw)); // keep roughly square-ish, cap to width
+  if (ph < 300) ph = 300;
+
+  // Set canvas dimensions (both rendering and CSS)
   canvas.width = pw;
   canvas.height = ph;
   canvas.style.width = pw + 'px';
   canvas.style.height = ph + 'px';
-  if (wrap) wrap.style.height = ph + 'px';
+  if (wrap) { wrap.style.height = ph + 'px'; wrap.style.width = pw + 'px'; }
 
   // Update sun details if in sun mode
   if (celestialMode === 'sun') updateSunDetails();

@@ -53,11 +53,21 @@ function switchTab(tab, btn) {
     setTimeout(function() { STATE.map.invalidateSize(); }, 100);
   }
   if (tab === 'skyplot') setTimeout(drawSkyPlot, 100);
-  if (tab === 'celestial') setTimeout(function() {
-    renderCelestial();
-    if (celestialMode === 'sun') updateSunDetails();
-  }, 150);
+  if (tab === 'celestial') {
+    // Render immediately, then re-render after layout settles
+    setTimeout(function() {
+      renderCelestial();
+      if (celestialMode === 'sun') updateSunDetails();
+    }, 50);
+    // Second render to catch any layout-dependent sizing
+    setTimeout(function() {
+      renderCelestial();
+      if (celestialMode === 'sun') updateSunDetails();
+    }, 300);
+    setTimeout(renderCelestial, 800);
+  }
   if (tab === 'chart') fetchWeather();
+  if (tab === 'share' && typeof renderConnectionHistory === 'function') renderConnectionHistory();
 }
 
 function handleResize() {
@@ -81,6 +91,9 @@ window.addEventListener('load', function() {
 
   // Auto-fetch IP geolocation on load for spoofing cross-check
   setTimeout(function() { if (typeof fetchIPGeolocation === 'function') fetchIPGeolocation(); }, 5000);
+
+  // Render connection history on load
+  if (typeof renderConnectionHistory === 'function') renderConnectionHistory();
 
   // Clock updater (clock only, not display — display is event-driven now)
   setInterval(updateClock, 1000);
