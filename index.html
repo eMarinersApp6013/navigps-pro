@@ -903,7 +903,19 @@ function getDecimalYear() {
 // GEOLOCATION
 // ============================================================
 function startGeolocation() {
-  if (!navigator.geolocation) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    const warn = document.getElementById('gpsWarning');
+    warn.textContent = 'GPS REQUIRES HTTPS — Redirecting to secure connection...';
+    warn.classList.add('show');
+    setTimeout(() => { location.href = location.href.replace('http:', 'https:'); }, 1500);
+    return;
+  }
+  if (!navigator.geolocation) {
+    const warn = document.getElementById('gpsWarning');
+    warn.textContent = 'GPS NOT SUPPORTED — Use a modern browser with location services';
+    warn.classList.add('show');
+    return;
+  }
   STATE.watchId = navigator.geolocation.watchPosition(
     onPosition, onPositionError,
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -952,6 +964,18 @@ function onPosition(pos) {
 
 function onPositionError(err) {
   document.getElementById('gpsStatusDot').className = 'status-dot inactive';
+  const warn = document.getElementById('gpsWarning');
+  const msgs = {
+    1: 'GPS DENIED — Allow location access in browser/phone settings',
+    2: 'GPS UNAVAILABLE — Turn off airplane mode & enable Location Services',
+    3: 'GPS TIMEOUT — Trying to acquire signal...'
+  };
+  warn.textContent = msgs[err.code] || 'GPS ERROR — ' + err.message;
+  warn.classList.add('show');
+  // For timeout, retry silently
+  if (err.code === 3) {
+    setTimeout(() => { warn.classList.remove('show'); }, 5000);
+  }
 }
 
 // ============================================================
