@@ -86,5 +86,22 @@ function updateWakeLockIndicator(active) {
 function handleVisibilityForWakeLock() {
   if (document.visibilityState === 'visible' && getSettings().wakeLock) {
     requestWakeLock();
+    // iOS: re-trigger NoSleep video on every focus (iOS pauses video on screen lock)
+    startNoSleep();
   }
 }
+
+// iOS-specific: also handle pageshow event (fired when coming back from lock screen on iOS Safari)
+window.addEventListener('pageshow', function() {
+  if (getSettings().wakeLock) {
+    requestWakeLock();
+    startNoSleep();
+  }
+});
+
+// iOS: re-trigger on touchstart (first interaction after lock screen)
+document.addEventListener('touchstart', function iosWakeLockRetry() {
+  if (getSettings().wakeLock && STATE.noSleepVideo && STATE.noSleepVideo.paused) {
+    startNoSleep();
+  }
+}, { passive: true });

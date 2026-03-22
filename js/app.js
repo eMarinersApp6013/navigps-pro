@@ -1,4 +1,38 @@
 /* ============================================================
+   MANUAL REFRESH BUTTON — works for both GPS and Remote mode
+   ============================================================ */
+function manualRefresh() {
+  var btn = document.getElementById('refreshBtn');
+  if (btn) {
+    btn.style.transform = 'rotate(360deg)';
+    btn.style.transition = 'transform 0.5s';
+    setTimeout(function() { btn.style.transform = ''; btn.style.transition = ''; }, 600);
+  }
+
+  if (STATE.remoteMode) {
+    // In remote mode: reconnect the peer if disconnected
+    if (STATE.conn && STATE.conn.open) {
+      // Connection still open — just refresh displays
+      refreshAllDisplays();
+    } else if (STATE.peer && !STATE.peer.destroyed && STATE.remoteCode) {
+      // Try reconnecting
+      connectToPeer('navigps-' + STATE.remoteCode, STATE.remoteCode);
+    }
+  } else {
+    // GPS mode: force a fresh position request
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(onPosition, function() {}, {
+        enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+      });
+    }
+  }
+  // Always refresh displays
+  refreshAllDisplays();
+  if (STATE.map) STATE.map.invalidateSize();
+  fetchWeather();
+}
+
+/* ============================================================
    APP INITIALIZATION & TAB SWITCHING
    ============================================================ */
 function switchTab(tab, btn) {
@@ -65,6 +99,39 @@ window.addEventListener('load', function() {
 
   window.addEventListener('resize', handleResize);
   document.addEventListener('visibilitychange', handleVisibilityForWakeLock);
+
+  // Fix remote mode screen lock: reconnect peer when screen wakes up
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      // Re-request GPS position immediately
+      if (!STATE.manualMode && !STATE.remoteMode && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(onPosition, function() {}, {
+          enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+        });
+      }
+      // Reconnect remote peer if needed
+      if (STATE.remoteMode && STATE.remoteCode) {
+        setTimeout(function() {
+          if (!STATE.conn || !STATE.conn.open) {
+            if (STATE.peer && !STATE.peer.destroyed) {
+              connectToPeer('navigps-' + STATE.remoteCode, STATE.remoteCode);
+            } else {
+              // Peer destroyed — restart receiving
+              connectToSender();
+            }
+          }
+        }, 1000);
+      }
+      // Reconnect sender if sharing
+      if (STATE.isSharing && STATE.peer) {
+        setTimeout(function() {
+          if (STATE.peer.disconnected && !STATE.peer.destroyed) {
+            try { STATE.peer.reconnect(); } catch(e) {}
+          }
+        }, 1000);
+      }
+    }
+  });
 
   // NoSleep on first user interaction
   document.addEventListener('click', function firstInteraction() {
