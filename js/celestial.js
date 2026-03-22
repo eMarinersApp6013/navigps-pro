@@ -117,6 +117,14 @@ function magToSize(mag) {
   return Math.max(1, 4 - mag * 0.8);
 }
 
+/* Get horizon coords (azimuth/altitude) for a solar system body.
+   This version of astronomy-engine requires Equator() first, then Horizon(). */
+function getBodyHorizon(date, observer, bodyName) {
+  var eq = Astronomy.Equator(bodyName, date, observer, true, true);
+  var hor = Astronomy.Horizon(date, observer, eq.ra, eq.dec, 'normal');
+  return { azimuth: hor.azimuth, altitude: hor.altitude, ra: eq.ra, dec: eq.dec };
+}
+
 /* Get sky background color based on sun altitude */
 function getSkyColor(sunAlt, nightMode) {
   if (nightMode) return '#0a0000';
@@ -190,7 +198,7 @@ function renderCelestial() {
   var siderealTime = Astronomy.SiderealTime(date);
 
   // Get sun altitude for sky color
-  var sunHor = Astronomy.Horizon(date, observer, 'Sun', 'normal');
+  var sunHor = getBodyHorizon(date, observer, 'Sun');
   var sunAlt = sunHor.altitude;
   var skyColor = getSkyColor(sunAlt, nightMode);
 
@@ -300,7 +308,7 @@ function renderCelestial() {
 
   solarBodies.forEach(function(b) {
     try {
-      var hor = Astronomy.Horizon(date, observer, b.body, 'normal');
+      var hor = getBodyHorizon(date, observer, b.body);
       var alt = hor.altitude, az = hor.azimuth;
       if (alt < 0) return;
       var p = domeProject(az, alt, shipHdg, cx, cy, radius);
@@ -469,7 +477,7 @@ function updateSunDetails() {
     var date = Astronomy.MakeTime(now);
 
     // Current Sun position
-    var sunHor = Astronomy.Horizon(date, observer, 'Sun', 'normal');
+    var sunHor = getBodyHorizon(date, observer, 'Sun');
     document.getElementById('sunAlt').textContent = sunHor.altitude.toFixed(2) + '\u00B0';
     document.getElementById('sunAz').textContent = sunHor.azimuth.toFixed(2) + '\u00B0';
 
