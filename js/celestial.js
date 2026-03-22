@@ -131,26 +131,19 @@ function renderCelestial() {
   var canvas = document.getElementById('celestial-canvas');
   if (!canvas) return;
 
-  var parent = canvas.parentElement;
-  // Fix blank page: force valid dimensions using multiple fallbacks
-  var pw = parent.clientWidth || parent.offsetWidth || document.getElementById('tab-celestial').clientWidth || window.innerWidth;
-  var ph = parent.clientHeight || parent.offsetHeight || 0;
-  // Ensure minimum usable dimensions
+  var wrap = document.getElementById('celestialCanvasWrap');
+  // Calculate width from wrapper, height from available tab space
+  var pw = (wrap ? wrap.clientWidth : 0) || window.innerWidth - 16;
+  var tabEl = document.getElementById('tab-celestial');
+  var tabH = tabEl ? tabEl.clientHeight : window.innerHeight - 120;
+  var ph = Math.max(350, tabH - 240);
   if (pw < 100) pw = window.innerWidth - 16;
-  if (ph < 100) {
-    // Calculate available height: viewport - header - inputs - nav - info panel
-    var tabEl = document.getElementById('tab-celestial');
-    if (tabEl) {
-      var tabH = tabEl.clientHeight || window.innerHeight - 120;
-      ph = Math.max(300, tabH - 200);
-    } else {
-      ph = Math.max(300, window.innerHeight - 300);
-    }
-  }
+
   canvas.width = pw;
   canvas.height = ph;
   canvas.style.width = pw + 'px';
   canvas.style.height = ph + 'px';
+  if (wrap) wrap.style.height = ph + 'px';
 
   // Update sun details if in sun mode
   if (celestialMode === 'sun') updateSunDetails();

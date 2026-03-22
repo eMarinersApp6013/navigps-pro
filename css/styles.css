@@ -202,7 +202,8 @@ html,body {
 .settings-close { background:none; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer; padding:4px; }
 
 /* Chart panel */
-#chart-map { height:100%; width:100%; }
+#chart-map { flex:1; width:100%; min-height:0; }
+#tab-chart { position:relative; }
 
 /* Share panel */
 .share-code {

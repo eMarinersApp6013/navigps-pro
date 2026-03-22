@@ -294,9 +294,9 @@
 
       <!-- Weather Panel with Visual Compass -->
       <div class="card" id="weatherPanel" style="display:none;position:absolute;bottom:60px;right:8px;z-index:500;max-width:320px;padding:8px 10px;font-size:11px;opacity:0.95">
-        <div class="card-title" style="cursor:pointer" onclick="toggleWeatherExpand()">Weather <span id="weatherExpandIcon" style="font-size:8px">&#9660;</span></div>
+        <div class="card-title" style="cursor:pointer" onclick="toggleWeatherExpand()">Weather <span id="weatherExpandIcon" style="font-size:8px">&#9650;</span></div>
         <div id="weatherCompact"></div>
-        <div id="weatherExpanded" style="display:none">
+        <div id="weatherExpanded">
           <div style="text-align:center;margin:8px 0">
             <svg id="weatherCompassSvg" width="200" height="200" viewBox="0 0 200 200">
               <circle cx="100" cy="100" r="90" fill="none" stroke="var(--grid-color)" stroke-width="1"/>
@@ -455,12 +455,12 @@
         </div>
       </div>
 
-      <div style="flex:1;position:relative;min-height:0">
-        <canvas id="celestial-canvas"></canvas>
+      <div id="celestialCanvasWrap" style="position:relative;width:100%;min-height:350px;flex-shrink:0">
+        <canvas id="celestial-canvas" style="display:block;width:100%;min-height:350px"></canvas>
       </div>
-      <div class="card" id="celestialInfo">
+      <div class="card" id="celestialInfo" style="flex-shrink:0">
         <div class="card-title">Visible Bodies</div>
-        <div id="celestialList" style="font-size:11px;max-height:120px;overflow-y:auto"></div>
+        <div id="celestialList" style="font-size:11px;max-height:150px;overflow-y:auto"></div>
       </div>
     </div>
 
