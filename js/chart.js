@@ -51,6 +51,14 @@ function initMap() {
   STATE.trackLine = L.polyline([], { color: '#00e67688', weight: 2, smoothFactor: 1 }).addTo(STATE.map);
   STATE.accCircle = L.circle([25.0, 55.0], { radius: 50, color: '#2a7fff44', fillColor: '#2a7fff22', weight: 1 }).addTo(STATE.map);
 
+  // Depth label marker — shows depth value right next to ship
+  var depthLabelIcon = L.divIcon({
+    className: '',
+    html: '<div id="chartDepthLabel" style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:700;color:#2a7fff;text-shadow:0 0 4px #000,0 0 2px #000,1px 1px 0 #000;white-space:nowrap;pointer-events:none">--m</div>',
+    iconSize: [60, 20], iconAnchor: [-14, 14]
+  });
+  STATE.depthLabel = L.marker([25.0, 55.0], { icon: depthLabelIcon, interactive: false, zIndexOffset: 500 }).addTo(STATE.map);
+
   // Port click handler via Overpass API
   STATE.map.on('click', onMapClick);
 
@@ -114,11 +122,24 @@ function fetchDepthAtShip() {
       // GEBCO returns negative values for below sea level
       var displayDepth = depth < 0 ? Math.abs(depth) : depth;
       chartDepthAtCursor = displayDepth;
+      STATE.depthAtShip = displayDepth;
       var depthEl = document.getElementById('cursorDepth');
       if (depthEl) {
         depthEl.textContent = displayDepth.toFixed(1);
         depthEl.style.fontWeight = '700';
         depthEl.style.fontSize = '13px';
+      }
+      // Update depth label on chart next to ship marker
+      var chartLabel = document.getElementById('chartDepthLabel');
+      if (chartLabel) {
+        chartLabel.textContent = displayDepth.toFixed(0) + 'm';
+        chartLabel.style.color = displayDepth < 10 ? '#ff4444' : displayDepth < 30 ? '#ffab00' : '#2a7fff';
+      }
+      // Update depth on NAV tab
+      var navDepthEl = document.getElementById('navDepthDisplay');
+      if (navDepthEl) {
+        navDepthEl.textContent = displayDepth.toFixed(1) + 'm';
+        navDepthEl.style.color = displayDepth < 10 ? 'var(--danger)' : displayDepth < 30 ? 'var(--warning)' : 'var(--info, #2a7fff)';
       }
       updateUKC();
     }
@@ -150,6 +171,7 @@ function updateMap() {
 
   STATE.accCircle.setLatLng(pos);
   if (STATE.accuracy) STATE.accCircle.setRadius(STATE.accuracy);
+  if (STATE.depthLabel) STATE.depthLabel.setLatLng(pos);
   // Track trail: split at null entries (position jumps) into separate segments
   if (getSettings().trackTrail) {
     var segments = [], seg = [];
