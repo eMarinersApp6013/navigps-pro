@@ -465,6 +465,371 @@ function useLiveHeading() {
 }
 
 /* ============================================================
+   DECK VIEW — Panoramic "Standing on Ship" Star View
+   Person looking at sky from ship deck, PORT/STBD/HEAD/ASTERN
+   Designed so even a kid can understand where to look
+   ============================================================ */
+var currentStarView = 'dome';  // 'dome' or 'deck'
+var deckLookDir = 'ahead';     // 'ahead', 'port', 'stbd', 'astern'
+
+function setStarView(view) {
+  currentStarView = view;
+  document.getElementById('btnViewDome').style.background = view === 'dome' ? 'var(--accent)' : '';
+  document.getElementById('btnViewDome').style.color = view === 'dome' ? '#000' : '';
+  document.getElementById('btnViewDeck').style.background = view === 'deck' ? 'var(--accent)' : '';
+  document.getElementById('btnViewDeck').style.color = view === 'deck' ? '#000' : '';
+  document.getElementById('celestialCanvasWrap').style.display = view === 'dome' ? '' : 'none';
+  document.getElementById('deckViewWrap').style.display = view === 'deck' ? '' : 'none';
+  if (view === 'deck') renderDeckView();
+  else renderCelestial();
+}
+
+function setDeckLook(dir) {
+  deckLookDir = dir;
+  ['port','ahead','stbd','astern'].forEach(function(d) {
+    var btn = document.getElementById('deckLook' + d.charAt(0).toUpperCase() + d.slice(1));
+    if (btn) {
+      btn.style.background = d === dir ? 'var(--accent)' : '';
+      btn.style.color = d === dir ? '#000' : '';
+    }
+  });
+  renderDeckView();
+}
+
+function renderDeckView() {
+  var canvas = document.getElementById('deck-canvas');
+  if (!canvas) return;
+
+  var wrap = document.getElementById('deckViewWrap');
+  var tabEl = document.getElementById('tab-celestial');
+  var pw = 0;
+  if (wrap && wrap.offsetWidth > 0) pw = wrap.offsetWidth;
+  else if (tabEl && tabEl.offsetWidth > 0) pw = tabEl.offsetWidth - 16;
+  if (pw < 100) pw = window.innerWidth - 16;
+  if (pw < 100) pw = 360;
+
+  var ph = Math.max(400, Math.min(pw * 1.1, 550));
+  canvas.width = pw;
+  canvas.height = ph;
+  canvas.style.width = pw + 'px';
+  canvas.style.height = ph + 'px';
+
+  var ctx = canvas.getContext('2d');
+  var w = pw, h = ph;
+
+  var shipHdg = parseFloat(document.getElementById('celestialHdg').value) || 0;
+  var hoe = parseFloat(document.getElementById('heightOfEye').value) || 15;
+  var lat = STATE.manualMode && STATE.manualLat != null ? STATE.manualLat : (STATE.lat || 25.0);
+  var lon = STATE.manualMode && STATE.manualLon != null ? STATE.manualLon : (STATE.lon || 55.0);
+  var now = new Date();
+  var nightMode = getSettings().nightMode;
+
+  if (typeof Astronomy === 'undefined') {
+    ctx.fillStyle = '#030510'; ctx.fillRect(0, 0, w, h);
+    ctx.font = '14px IBM Plex Sans'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff4444';
+    ctx.fillText('Astronomy library not loaded', w/2, h/2);
+    return;
+  }
+
+  var observer = new Astronomy.Observer(lat, lon, hoe);
+  var date = Astronomy.MakeTime(now);
+  var siderealTime = Astronomy.SiderealTime(date);
+  var sunHor = getBodyHorizon(date, observer, 'Sun');
+  var sunAlt = sunHor.altitude;
+
+  // View center bearing based on look direction
+  var lookBrg = shipHdg; // ahead
+  if (deckLookDir === 'port') lookBrg = (shipHdg - 90 + 360) % 360;
+  else if (deckLookDir === 'stbd') lookBrg = (shipHdg + 90) % 360;
+  else if (deckLookDir === 'astern') lookBrg = (shipHdg + 180) % 360;
+
+  var fov = 180; // field of view in degrees (180° panoramic)
+
+  // --- Layout ---
+  var seaH = 60;        // sea area at bottom
+  var deckH = 90;       // ship deck + person area
+  var skyH = h - seaH;  // sky area
+  var horizonY = h - seaH; // horizon line Y position
+
+  // --- Draw sky ---
+  var skyColor1 = nightMode ? '#0a0000' : (sunAlt > 0 ? '#1a3050' : sunAlt > -6 ? '#1a1030' : sunAlt > -12 ? '#0a0e20' : '#030510');
+  var skyColor2 = nightMode ? '#080000' : (sunAlt > 0 ? '#3a5570' : sunAlt > -6 ? '#2a1830' : sunAlt > -12 ? '#060a14' : '#010208');
+  var skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+  skyGrad.addColorStop(0, skyColor1);
+  skyGrad.addColorStop(1, skyColor2);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, w, horizonY);
+
+  // --- Draw sea ---
+  var seaGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+  seaGrad.addColorStop(0, nightMode ? '#060008' : '#0a1828');
+  seaGrad.addColorStop(1, nightMode ? '#030004' : '#040c14');
+  ctx.fillStyle = seaGrad;
+  ctx.fillRect(0, horizonY, w, seaH);
+
+  // Horizon line glow
+  ctx.strokeStyle = nightMode ? '#330808' : '#334466';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, horizonY); ctx.lineTo(w, horizonY); ctx.stroke();
+  // Sea reflection shimmer
+  for (var si = 0; si < 8; si++) {
+    var sx = Math.random() * w;
+    var sy = horizonY + 10 + Math.random() * (seaH - 20);
+    var sw = 15 + Math.random() * 30;
+    ctx.strokeStyle = nightMode ? '#110205' : '#ffffff08';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sw, sy); ctx.stroke();
+  }
+
+  // --- Draw ship deck (bottom) ---
+  var deckTop = horizonY - 5;
+  // Ship railing
+  ctx.strokeStyle = nightMode ? '#331111' : '#445566';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, deckTop + 2); ctx.lineTo(w, deckTop + 2); ctx.stroke();
+  // Railing posts
+  for (var rp = 0; rp <= w; rp += 40) {
+    ctx.beginPath(); ctx.moveTo(rp, deckTop + 2); ctx.lineTo(rp, deckTop + 12); ctx.stroke();
+  }
+
+  // --- Draw person silhouette (center) ---
+  var personX = w / 2;
+  var personBaseY = deckTop + 3;
+  var personScale = 0.7;
+  ctx.save();
+  ctx.fillStyle = nightMode ? '#331111' : '#1a2a3a';
+  ctx.strokeStyle = nightMode ? '#441515' : '#2a3a4a';
+  ctx.lineWidth = 1;
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(personX - 8 * personScale, personBaseY);
+  ctx.lineTo(personX - 6 * personScale, personBaseY - 35 * personScale);
+  ctx.lineTo(personX + 6 * personScale, personBaseY - 35 * personScale);
+  ctx.lineTo(personX + 8 * personScale, personBaseY);
+  ctx.fill(); ctx.stroke();
+  // Head
+  ctx.beginPath();
+  ctx.arc(personX, personBaseY - 40 * personScale, 6 * personScale, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Arms pointing up-left and up-right (looking at sky)
+  ctx.lineWidth = 2.5 * personScale;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(personX - 6 * personScale, personBaseY - 25 * personScale);
+  ctx.lineTo(personX - 22 * personScale, personBaseY - 42 * personScale);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(personX + 6 * personScale, personBaseY - 25 * personScale);
+  ctx.lineTo(personX + 22 * personScale, personBaseY - 42 * personScale);
+  ctx.stroke();
+  ctx.restore();
+
+  // --- Labels: LEFT / RIGHT / CENTER direction ---
+  var leftDir, rightDir, centerDir;
+  if (deckLookDir === 'ahead') { leftDir = 'PORT'; rightDir = 'STBD'; centerDir = 'AHEAD'; }
+  else if (deckLookDir === 'port') { leftDir = 'ASTERN'; rightDir = 'AHEAD'; centerDir = 'PORT'; }
+  else if (deckLookDir === 'stbd') { leftDir = 'AHEAD'; rightDir = 'ASTERN'; centerDir = 'STBD'; }
+  else { leftDir = 'STBD'; rightDir = 'PORT'; centerDir = 'ASTERN'; }
+
+  // Direction labels at bottom of sky
+  ctx.font = 'bold 11px IBM Plex Sans';
+  ctx.fillStyle = nightMode ? '#ff3333' : '#00e676';
+  ctx.textAlign = 'center';
+  ctx.fillText(centerDir, w / 2, horizonY - 10);
+
+  ctx.fillStyle = nightMode ? '#aa3333' : '#ff8a65';
+  ctx.textAlign = 'left';
+  ctx.fillText('\u25C0 ' + leftDir, 8, horizonY - 10);
+  ctx.textAlign = 'right';
+  ctx.fillText(rightDir + ' \u25B6', w - 8, horizonY - 10);
+
+  // Bearing labels along horizon
+  ctx.font = '9px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = nightMode ? '#552222' : '#5a7a9a';
+  for (var bOff = -80; bOff <= 80; bOff += 20) {
+    var brgVal = ((lookBrg + bOff) % 360 + 360) % 360;
+    var bx = w / 2 + (bOff / (fov / 2)) * (w / 2);
+    ctx.fillText(Math.round(brgVal) + '\u00B0', bx, horizonY - 22);
+    // tick mark
+    ctx.strokeStyle = nightMode ? '#331111' : '#3a5070';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(bx, horizonY - 18); ctx.lineTo(bx, horizonY - 14); ctx.stroke();
+  }
+
+  // --- Altitude lines ---
+  ctx.font = '8px JetBrains Mono';
+  ctx.textAlign = 'right';
+  ctx.setLineDash([4, 6]);
+  var altColors = nightMode ? '#220808' : '#1a2a40';
+  for (var altLine = 15; altLine <= 75; altLine += 15) {
+    var aly = horizonY - (altLine / 90) * (skyH - 30);
+    ctx.strokeStyle = altColors;
+    ctx.lineWidth = 0.3;
+    ctx.beginPath(); ctx.moveTo(0, aly); ctx.lineTo(w, aly); ctx.stroke();
+    ctx.fillStyle = nightMode ? '#552222' : '#4a6a8a';
+    ctx.fillText(altLine + '\u00B0', w - 4, aly - 2);
+    // Left side label with helpful text
+    ctx.textAlign = 'left';
+    if (altLine === 15) ctx.fillText('low', 4, aly - 2);
+    else if (altLine === 45) ctx.fillText('halfway up', 4, aly - 2);
+    else if (altLine === 75) ctx.fillText('nearly overhead', 4, aly - 2);
+    ctx.textAlign = 'right';
+  }
+  ctx.setLineDash([]);
+
+  // --- Helper function: bearing/alt to x,y on panoramic canvas ---
+  function panoramicXY(az, alt) {
+    var relBrg = ((az - lookBrg + 540) % 360) - 180; // -180 to +180 relative to look direction
+    if (relBrg < -fov / 2 || relBrg > fov / 2) return null; // outside FOV
+    if (alt < 0) return null;
+    var x = w / 2 + (relBrg / (fov / 2)) * (w / 2);
+    var y = horizonY - (alt / 90) * (skyH - 30);
+    return { x: x, y: y };
+  }
+
+  var nightStarColor = '#ff9966';
+  var dayStarColor = '#ffe082';
+  var starColor = nightMode ? nightStarColor : dayStarColor;
+  var planetColor = nightMode ? '#ff6644' : '#ff8a65';
+
+  // --- Constellation lines ---
+  var allStars = {};
+  NAV_STARS.forEach(function(s) {
+    try {
+      var pos = calcStarAzAlt(s[1], s[2], lat, lon, siderealTime);
+      allStars[s[0]] = { az: pos.az, alt: pos.alt, mag: s[3], constellation: s[4], bayer: s[5] };
+    } catch(e) {}
+  });
+  CONSTELLATION_EXTRA_STARS.forEach(function(s) {
+    try {
+      var pos = calcStarAzAlt(s[1], s[2], lat, lon, siderealTime);
+      allStars[s[0]] = { az: pos.az, alt: pos.alt };
+    } catch(e) {}
+  });
+
+  ctx.strokeStyle = nightMode ? '#331111' : '#1a2540';
+  ctx.lineWidth = 0.5; ctx.setLineDash([3, 4]);
+  CONSTELLATION_LINES.forEach(function(pair) {
+    var s1 = allStars[pair[0]], s2 = allStars[pair[1]];
+    if (!s1 || !s2) return;
+    var p1 = panoramicXY(s1.az, Math.max(0, s1.alt));
+    var p2 = panoramicXY(s2.az, Math.max(0, s2.alt));
+    if (!p1 || !p2) return;
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // --- Plot solar system bodies ---
+  var solarBodies = [
+    { name: 'Sun', body: 'Sun', type: 'sun' },
+    { name: 'Moon', body: 'Moon', type: 'moon' },
+    { name: 'Venus', body: 'Venus', type: 'planet' },
+    { name: 'Mars', body: 'Mars', type: 'planet' },
+    { name: 'Jupiter', body: 'Jupiter', type: 'planet' },
+    { name: 'Saturn', body: 'Saturn', type: 'planet' },
+    { name: 'Mercury', body: 'Mercury', type: 'planet' },
+  ];
+
+  solarBodies.forEach(function(b) {
+    try {
+      var hor = getBodyHorizon(date, observer, b.body);
+      if (hor.altitude < -2) return;
+      var p = panoramicXY(hor.azimuth, Math.max(0, hor.altitude));
+      if (!p) return;
+
+      if (b.type === 'sun') {
+        // Sun with warm glow
+        var glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30);
+        glow.addColorStop(0, '#ffd54faa'); glow.addColorStop(1, '#ffd54f00');
+        ctx.beginPath(); ctx.arc(p.x, p.y, 30, 0, Math.PI * 2); ctx.fillStyle = glow; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffd54f'; ctx.fill();
+      } else if (b.type === 'moon') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = nightMode ? '#ffcccc' : '#e8e8e8'; ctx.fill();
+        ctx.strokeStyle = '#ffffff44'; ctx.lineWidth = 1; ctx.stroke();
+      } else {
+        var pColors = { Venus: '#ffffff', Mars: '#ff4422', Jupiter: '#ffe0a0', Saturn: '#ffcc44', Mercury: '#ccbbaa' };
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = pColors[b.name] || planetColor; ctx.fill();
+        // Glow
+        var glow2 = ctx.createRadialGradient(p.x, p.y, 3, p.x, p.y, 12);
+        glow2.addColorStop(0, (pColors[b.name] || planetColor) + '44'); glow2.addColorStop(1, '#00000000');
+        ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2); ctx.fillStyle = glow2; ctx.fill();
+      }
+
+      // Label with arrow pointing to body
+      ctx.font = 'bold 10px IBM Plex Sans'; ctx.textAlign = 'center';
+      ctx.fillStyle = b.type === 'sun' ? '#ffd54f' : b.type === 'moon' ? '#e0e0e0' : planetColor;
+      ctx.fillText(b.name, p.x, p.y - 14);
+      // Altitude label
+      ctx.font = '8px JetBrains Mono';
+      ctx.fillText(hor.altitude.toFixed(0) + '\u00B0', p.x, p.y + 16);
+    } catch(e) {}
+  });
+
+  // --- Plot navigational stars ---
+  NAV_STARS.forEach(function(star) {
+    var name = star[0], ra = star[1], dec = star[2], mag = star[3], constellation = star[4];
+    try {
+      var pos = calcStarAzAlt(ra, dec, lat, lon, siderealTime);
+      if (pos.alt < 0) return;
+      var p = panoramicXY(pos.az, pos.alt);
+      if (!p) return;
+
+      var starSize = Math.max(1.5, 5 - mag * 0.9);
+      // Star glow
+      if (mag < 1.5) {
+        var glow3 = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, starSize + 6);
+        glow3.addColorStop(0, starColor + '88'); glow3.addColorStop(1, starColor + '00');
+        ctx.beginPath(); ctx.arc(p.x, p.y, starSize + 6, 0, Math.PI * 2); ctx.fillStyle = glow3; ctx.fill();
+      }
+      // Star dot
+      ctx.beginPath(); ctx.arc(p.x, p.y, starSize, 0, Math.PI * 2);
+      ctx.fillStyle = starColor; ctx.fill();
+
+      // Label all visible stars in deck view (more readable)
+      if (mag < 2.2) {
+        ctx.font = mag < 1.0 ? 'bold 10px IBM Plex Sans' : '9px IBM Plex Sans';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = starColor;
+        ctx.fillText(name, p.x, p.y - starSize - 6);
+        // Show altitude helper
+        ctx.font = '7px JetBrains Mono';
+        ctx.fillStyle = nightMode ? '#aa6644' : '#aa9060';
+        ctx.fillText(pos.alt.toFixed(0) + '\u00B0 up', p.x, p.y + starSize + 10);
+      }
+    } catch(e) {}
+  });
+
+  // --- Title bar at top ---
+  ctx.fillStyle = nightMode ? '#0a000088' : '#030510aa';
+  ctx.fillRect(0, 0, w, 28);
+  ctx.font = 'bold 12px IBM Plex Sans'; ctx.textAlign = 'center';
+  ctx.fillStyle = nightMode ? '#ff4444' : '#00e676';
+  var lookLabel = 'Looking ' + centerDir + ' (Hdg ' + Math.round(lookBrg) + '\u00B0T)';
+  ctx.fillText(lookLabel, w / 2, 18);
+
+  // Twilight indicator
+  var twText = '';
+  if (sunAlt > 0) twText = 'DAYTIME \u2014 Stars not visible to naked eye';
+  else if (sunAlt > -6) twText = 'CIVIL TWILIGHT \u2014 Brightest stars visible';
+  else if (sunAlt > -12) twText = 'NAUTICAL TWILIGHT \u2014 Best for star sights';
+  else if (sunAlt > -18) twText = 'ASTRONOMICAL TWILIGHT';
+  else twText = 'NIGHTTIME';
+  ctx.font = '9px IBM Plex Sans'; ctx.textAlign = 'center';
+  ctx.fillStyle = sunAlt > -6 && sunAlt <= 0 ? '#ff8844' : (sunAlt > -12 && sunAlt <= -6 ? '#44aaff' : '#5a7a9a');
+  ctx.fillText(twText, w / 2, h - 8);
+
+  // Helpful instruction at top
+  ctx.font = '9px IBM Plex Sans'; ctx.textAlign = 'center';
+  ctx.fillStyle = nightMode ? '#663333' : '#6a8aaa';
+  ctx.fillText('Stand on deck, face ' + centerDir + '. Stars are shown at their real positions.', w / 2, 42);
+  ctx.fillText('\u25C0 ' + leftDir + ' is to your left    |    ' + rightDir + ' is to your right \u25B6', w / 2, 55);
+}
+
+/* ============================================================
    SUN DETAILS (Sunrise, Sunset, LAN, Declination, GHA, EOT)
    ============================================================ */
 function updateSunDetails() {
@@ -502,9 +867,12 @@ function updateSunDetails() {
     var eotSec = Math.round((Math.abs(eot) - eotMin) * 60);
     document.getElementById('sunEOT').textContent = (eot >= 0 ? '+' : '-') + eotMin + 'm ' + eotSec + 's';
 
-    // Sunrise/Sunset
+    // Sunrise/Sunset — search from today's midnight so we always get TODAY's times
+    var todayMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    var midnightDate = Astronomy.MakeTime(todayMidnight);
+
     try {
-      var rise = Astronomy.SearchRiseSet('Sun', observer, +1, date, 1);
+      var rise = Astronomy.SearchRiseSet('Sun', observer, +1, midnightDate, 1);
       if (rise) {
         var rDate = rise.date;
         document.getElementById('sunRise').textContent =
@@ -514,7 +882,7 @@ function updateSunDetails() {
     } catch(e) { document.getElementById('sunRise').textContent = 'N/A'; }
 
     try {
-      var set = Astronomy.SearchRiseSet('Sun', observer, -1, date, 1);
+      var set = Astronomy.SearchRiseSet('Sun', observer, -1, midnightDate, 1);
       if (set) {
         var sDate = set.date;
         document.getElementById('sunSet').textContent =
@@ -530,10 +898,10 @@ function updateSunDetails() {
     var lanM = Math.round((lanHours - lanH) * 60);
     document.getElementById('sunMeridian').textContent = lanH.toString().padStart(2,'0') + ':' + lanM.toString().padStart(2,'0') + ' UTC';
 
-    // Twilight times (civil -6°, nautical -12°)
+    // Twilight times (civil -6°, nautical -12°) — also from midnight
     try {
-      var civilDawn = Astronomy.SearchAltitude('Sun', observer, +1, date, 1, -6);
-      var civilDusk = Astronomy.SearchAltitude('Sun', observer, -1, date, 1, -6);
+      var civilDawn = Astronomy.SearchAltitude('Sun', observer, +1, midnightDate, 1, -6);
+      var civilDusk = Astronomy.SearchAltitude('Sun', observer, -1, midnightDate, 1, -6);
       if (civilDawn && civilDusk) {
         document.getElementById('sunTwilightCivil').textContent =
           civilDawn.date.getUTCHours().toString().padStart(2,'0') + ':' + civilDawn.date.getUTCMinutes().toString().padStart(2,'0') +
@@ -543,8 +911,8 @@ function updateSunDetails() {
     } catch(e) { document.getElementById('sunTwilightCivil').textContent = 'N/A'; }
 
     try {
-      var nautDawn = Astronomy.SearchAltitude('Sun', observer, +1, date, 1, -12);
-      var nautDusk = Astronomy.SearchAltitude('Sun', observer, -1, date, 1, -12);
+      var nautDawn = Astronomy.SearchAltitude('Sun', observer, +1, midnightDate, 1, -12);
+      var nautDusk = Astronomy.SearchAltitude('Sun', observer, -1, midnightDate, 1, -12);
       if (nautDawn && nautDusk) {
         document.getElementById('sunTwilightNaut').textContent =
           nautDawn.date.getUTCHours().toString().padStart(2,'0') + ':' + nautDawn.date.getUTCMinutes().toString().padStart(2,'0') +

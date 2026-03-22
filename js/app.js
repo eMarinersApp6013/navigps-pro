@@ -54,24 +54,24 @@ function switchTab(tab, btn) {
   }
   if (tab === 'skyplot') setTimeout(drawSkyPlot, 100);
   if (tab === 'celestial') {
-    // Render immediately, then re-render after layout settles
-    setTimeout(function() {
-      renderCelestial();
+    var renderActive = function() {
+      if (typeof currentStarView !== 'undefined' && currentStarView === 'deck') renderDeckView();
+      else renderCelestial();
       if (celestialMode === 'sun') updateSunDetails();
-    }, 50);
-    // Second render to catch any layout-dependent sizing
-    setTimeout(function() {
-      renderCelestial();
-      if (celestialMode === 'sun') updateSunDetails();
-    }, 300);
-    setTimeout(renderCelestial, 800);
+    };
+    setTimeout(renderActive, 50);
+    setTimeout(renderActive, 300);
+    setTimeout(renderActive, 800);
   }
   if (tab === 'chart') fetchWeather();
   if (tab === 'share' && typeof renderConnectionHistory === 'function') renderConnectionHistory();
 }
 
 function handleResize() {
-  if (document.getElementById('tab-celestial').classList.contains('active')) renderCelestial();
+  if (document.getElementById('tab-celestial').classList.contains('active')) {
+    if (typeof currentStarView !== 'undefined' && currentStarView === 'deck') renderDeckView();
+    else renderCelestial();
+  }
   if (document.getElementById('tab-skyplot').classList.contains('active')) drawSkyPlot();
 }
 
@@ -109,7 +109,10 @@ window.addEventListener('load', function() {
 
   // Celestial refresh every 60s if visible
   setInterval(function() {
-    if (document.getElementById('tab-celestial').classList.contains('active')) renderCelestial();
+    if (document.getElementById('tab-celestial').classList.contains('active')) {
+      if (typeof currentStarView !== 'undefined' && currentStarView === 'deck') renderDeckView();
+      else renderCelestial();
+    }
   }, 60000);
 
   // Weather refresh every 30min
