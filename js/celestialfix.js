@@ -76,7 +76,7 @@ function addSight() {
     var observer = new Astronomy.Observer(apLat, apLon, hoe);
 
     if (body === 'Sun' || body === 'Moon' || body === 'Venus' || body === 'Mars' || body === 'Jupiter' || body === 'Saturn') {
-      var hor = Astronomy.Horizon(date, observer, body, 'normal');
+      var hor = getBodyHorizon(date, observer, body);
       hc = hor.altitude;
       zn = hor.azimuth;
     } else {
