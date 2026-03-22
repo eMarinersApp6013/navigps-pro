@@ -157,6 +157,15 @@ function renderCelestial() {
   var now = new Date();
   var nightMode = getSettings().nightMode;
 
+  if (typeof Astronomy === 'undefined') {
+    ctx.fillStyle = nightMode ? '#080000' : '#030510';
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = '14px IBM Plex Sans'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff4444';
+    ctx.fillText('Astronomy library not loaded', cx, cy);
+    return;
+  }
+
   var observer = new Astronomy.Observer(lat, lon, hoe);
   var date = Astronomy.MakeTime(now);
   var siderealTime = Astronomy.SiderealTime(date);
