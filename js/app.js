@@ -8,23 +8,24 @@ function switchTab(tab, btn) {
   btn.classList.add('active');
 
   if (tab === 'chart' && !STATE.map) {
-    setTimeout(function() { initMap(); updateMap(); }, 100);
+    setTimeout(function() {
+      initMap();
+      updateMap();
+      // Add MOB marker if restored
+      if (STATE.mobPosition) addMOBMarker();
+    }, 100);
   }
   if (tab === 'chart' && STATE.map) {
     setTimeout(function() { STATE.map.invalidateSize(); }, 100);
   }
-  if (tab === 'skyplot') {
-    setTimeout(drawSkyPlot, 100);
-  }
-  if (tab === 'celestial') {
-    setTimeout(renderCelestial, 100);
-  }
+  if (tab === 'skyplot') setTimeout(drawSkyPlot, 100);
+  if (tab === 'celestial') setTimeout(renderCelestial, 100);
+  if (tab === 'chart') fetchWeather();
 }
 
 function handleResize() {
-  if (document.getElementById('tab-celestial').classList.contains('active')) {
-    renderCelestial();
-  }
+  if (document.getElementById('tab-celestial').classList.contains('active')) renderCelestial();
+  if (document.getElementById('tab-skyplot').classList.contains('active')) drawSkyPlot();
 }
 
 /* ============================================================
@@ -37,33 +38,34 @@ window.addEventListener('load', function() {
   initCompass();
   initCelestialClick();
 
-  // Clock updater
+  // Clock updater (clock only, not display — display is event-driven now)
   setInterval(updateClock, 1000);
   updateClock();
 
-  // Regular display update
-  setInterval(updateDisplay, 1000);
+  // GPS age counter is started inside startGeolocation()
+  // Display updates are event-driven from onPosition / onRemotePositionData
 
-  // Skyplot update every 30s
+  // Skyplot refresh every 30s if visible
   setInterval(function() {
     if (document.getElementById('tab-skyplot').classList.contains('active')) drawSkyPlot();
   }, 30000);
 
-  // Celestial update every 60s
+  // Celestial refresh every 60s if visible
   setInterval(function() {
     if (document.getElementById('tab-celestial').classList.contains('active')) renderCelestial();
   }, 60000);
 
-  window.addEventListener('resize', handleResize);
+  // Weather refresh every 30min
+  setInterval(function() {
+    if (STATE.lat != null) fetchWeather();
+  }, 1800000);
 
-  // Re-acquire wake lock on every visibility change
+  window.addEventListener('resize', handleResize);
   document.addEventListener('visibilitychange', handleVisibilityForWakeLock);
 
-  // Also try to start NoSleep on first user interaction (for autoplay policy)
+  // NoSleep on first user interaction
   document.addEventListener('click', function firstInteraction() {
-    if (getSettings().wakeLock) {
-      startNoSleep();
-    }
+    if (getSettings().wakeLock) startNoSleep();
     document.removeEventListener('click', firstInteraction);
   }, { once: true });
 });
