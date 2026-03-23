@@ -377,3 +377,11 @@ html,body {
 }
 @keyframes port-spin { to { transform: rotate(360deg); } }
 .port-loading { pointer-events:none; opacity:0.7; }
+
+/* GNSS spoofing alert animation */
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+#spoofAlertBanner { z-index:1000; position:relative; }
+/* Constellation row hover */
+.constellation-row { transition: background 0.2s; cursor: pointer; }
+.constellation-row:hover { background: #1a2a3a !important; }
+.constellation-row.primary { border: 1px solid #00e676; }

@@ -1,0 +1,29 @@
+{
+  "name": "navigps-pro",
+  "version": "1.0.0",
+  "description": "eMarinersApp NaviGPS Pro — Maritime Navigation with Multi-Constellation GNSS",
+  "main": "index.html",
+  "scripts": {
+    "build": "npx cap sync",
+    "build:android": "npx cap sync android && npx cap open android",
+    "build:ios": "npx cap sync ios && npx cap open ios",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios"
+  },
+  "author": "eMarinersApp",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/ios": "^6.1.0",
+    "@capacitor/geolocation": "^6.0.0",
+    "@capacitor/motion": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/screen-orientation": "^6.0.0",
+    "@capacitor/keep-awake": "^0.3.0"
+  }
+}

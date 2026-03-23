@@ -86,10 +86,90 @@
     </div>
   </div>
 
+  <!-- GPS SPOOFING ALERT BANNER (hidden by default, shown by NativeBridge) -->
+  <div id="spoofAlertBanner" style="display:none;background:#ff1744;color:#fff;padding:8px 12px;font-size:11px;text-align:center;font-weight:600;cursor:pointer;animation:blink 1s infinite" onclick="document.getElementById('spoofAlertBanner').style.display='none'">
+    GPS SPOOFING DETECTED
+  </div>
+
+  <!-- Platform indicator -->
+  <div style="display:flex;justify-content:center;padding:2px 0">
+    <span id="platformIndicator" class="mono" style="font-size:9px;color:#5a7a9a;letter-spacing:1px">WEB MODE</span>
+  </div>
+
   <!-- Content -->
   <div id="content">
     <!-- TAB 1: NAV DISPLAY -->
     <div class="tab-panel active" id="tab-nav">
+
+      <!-- GNSS CONSTELLATION CONTROL PANEL (native app only) -->
+      <div class="card gnss-android" id="gnssControlPanel" style="display:none;border-color:#2196F3;padding:8px 10px">
+        <div class="card-title" style="color:#2196F3">GNSS CONSTELLATION CONTROL</div>
+
+        <!-- Constellation toggle switches -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0">
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #4CAF50">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('gps',this.checked)" style="accent-color:#4CAF50">
+            <span style="font-size:11px;font-weight:600;color:#4CAF50">GPS</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="gpsCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #2196F3">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('glonass',this.checked)" style="accent-color:#2196F3">
+            <span style="font-size:11px;font-weight:600;color:#2196F3">GLONASS</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="glonassCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #FF9800">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('galileo',this.checked)" style="accent-color:#FF9800">
+            <span style="font-size:11px;font-weight:600;color:#FF9800">GALILEO</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="galileoCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #f44336">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('beidou',this.checked)" style="accent-color:#f44336">
+            <span style="font-size:11px;font-weight:600;color:#f44336">BEIDOU</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="beidouCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #9C27B0">
+            <input type="checkbox" onchange="NativeBridge.setConstellation('navic',this.checked)" style="accent-color:#9C27B0">
+            <span style="font-size:11px;font-weight:600;color:#9C27B0">NavIC</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="navicCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #795548">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('sbas',this.checked)" style="accent-color:#795548">
+            <span style="font-size:11px;font-weight:600;color:#795548">SBAS</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="sbasCount">--</span>
+          </label>
+        </div>
+
+        <!-- Primary constellation selector -->
+        <div style="display:flex;gap:6px;align-items:center;margin:6px 0 2px 0">
+          <label style="font-size:10px;color:#8a9ab5;white-space:nowrap">PRIMARY:</label>
+          <div class="select-wrap" style="flex:1">
+            <select id="primaryConstellationSelect" onchange="NativeBridge.setPrimaryConstellation(this.value)" style="font-size:11px;padding:4px 8px">
+              <option value="AUTO">AUTO (Best Available)</option>
+              <option value="GPS">GPS Only</option>
+              <option value="GLONASS">GLONASS Only</option>
+              <option value="GALILEO">Galileo Only</option>
+              <option value="BEIDOU">BeiDou Only</option>
+              <option value="NAVIC">NavIC Only</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Spoofing status -->
+        <div id="spoofStatus" style="font-size:10px;padding:4px 6px;margin-top:4px;background:#0d1b2a;border-radius:4px;text-align:center">
+          <span style="color:#8a9ab5">Waiting for multi-constellation fix...</span>
+        </div>
+
+        <!-- Per-constellation position comparison -->
+        <div id="constellationStatus" style="margin-top:4px;font-size:10px"></div>
+      </div>
+
+      <!-- Web mode message (shown only on web browser) -->
+      <div class="web-only" id="webModeNote" style="padding:4px 12px">
+        <div style="font-size:9px;color:#5a7a9a;text-align:center;border:1px dashed #1a2a40;border-radius:4px;padding:4px 8px">
+          Web mode: Using browser GPS. Install the mobile app for multi-constellation GNSS, satellite selection, and spoofing detection.
+        </div>
+      </div>
+
       <!-- Hero Position Display — BIG LAT/LON -->
       <div class="card" style="padding:10px 12px">
         <div class="card-title">Position</div>
@@ -843,6 +923,7 @@
 <script src="js/deadreckoning.js"></script>
 <script src="js/celestialfix.js"></script>
 <script src="js/ipgeo.js"></script>
+<script src="js/native-bridge.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
