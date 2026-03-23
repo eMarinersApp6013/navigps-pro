@@ -1,0 +1,96 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, claude/* ]
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Add Android platform
+      run: npx cap add android
+
+    - name: Sync web assets to Android
+      run: npx cap sync android
+
+    - name: Copy GNSS Engine plugin into Android project
+      run: |
+        # Copy plugin Java files
+        mkdir -p android/app/src/main/java/com/emarinersapp/gnss/
+        cp android-plugin/src/main/java/com/emarinersapp/gnss/*.java \
+           android/app/src/main/java/com/emarinersapp/gnss/
+
+        # Merge permissions into AndroidManifest.xml
+        # Add before closing </manifest> tag
+        sed -i '/<\/manifest>/i \
+            <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" \/>\
+            <uses-permission android:name="android.permission.WAKE_LOCK" \/>\
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" \/>\
+            <uses-feature android:name="android.hardware.location.gps" android:required="true" \/>' \
+           android/app/src/main/AndroidManifest.xml
+
+    - name: Register GnssEngine plugin in MainActivity
+      run: |
+        # Add import and plugin registration
+        MAIN_ACTIVITY="android/app/src/main/java/com/emarinersapp/navigpspro/MainActivity.java"
+
+        # Add import
+        sed -i '/^import com.getcapacitor.BridgeActivity;/a import com.emarinersapp.gnss.GnssEnginePlugin;' \
+          "$MAIN_ACTIVITY"
+
+        # Add plugin registration - create onCreate if not exists
+        if grep -q "onCreate" "$MAIN_ACTIVITY"; then
+          sed -i '/super.onCreate/i \        registerPlugin(GnssEnginePlugin.class);' "$MAIN_ACTIVITY"
+        else
+          sed -i '/public class MainActivity/a \
+            @Override\
+            protected void onCreate(android.os.Bundle savedInstanceState) {\
+                registerPlugin(GnssEnginePlugin.class);\
+                super.onCreate(savedInstanceState);\
+            }' "$MAIN_ACTIVITY"
+        fi
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Build debug APK
+      working-directory: android
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: NaviGPS-Pro-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 90
+
+    - name: Get APK size
+      run: |
+        APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+        SIZE=$(du -h "$APK_PATH" | cut -f1)
+        echo "### APK Built Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "**Size:** $SIZE" >> $GITHUB_STEP_SUMMARY
+        echo "Download from the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
