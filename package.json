@@ -4,12 +4,17 @@
   "description": "eMarinersApp NaviGPS Pro — Maritime Navigation with Multi-Constellation GNSS",
   "main": "index.html",
   "scripts": {
+    "test": "node --test tests/unit/*.test.js",
+    "test:watch": "node --test --watch tests/unit/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage tests/unit/*.test.js",
+    "lint": "for f in js/*.js; do node --check \"$f\" || exit 1; done",
     "build": "npx cap sync",
     "build:android": "npx cap sync android && npx cap open android",
     "build:ios": "npx cap sync ios && npx cap open ios",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
-    "cap:ios": "npx cap open ios"
+    "cap:ios": "npx cap open ios",
+    "pretest": "echo 'Running NaviGPS Pro test suite...'"
   },
   "author": "eMarinersApp",
   "license": "UNLICENSED",

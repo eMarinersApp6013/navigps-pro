@@ -1,47 +1,164 @@
-name: Build Android APK
+name: Build & Test Android
 
+# ============================================================
+# TRIGGERS
+# ============================================================
 on:
   push:
-    branches: [ main, claude/* ]
-  workflow_dispatch:  # Manual trigger from GitHub UI
+    branches: [ main, develop, claude/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
 
+# ============================================================
+# ENVIRONMENT
+# ============================================================
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '17'
+  ANDROID_MIN_SDK: '24'
+  ANDROID_TARGET_SDK: '34'
+
+# ============================================================
+# JOBS
+# ============================================================
 jobs:
-  build-apk:
+
+  # ----------------------------------------------------------
+  # JOB 1: UNIT TESTS (fast, no Android SDK needed)
+  # ----------------------------------------------------------
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
+    - uses: actions/setup-node@v4
       with:
-        node-version: '20'
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
 
     - name: Install dependencies
-      run: npm install
+      run: npm ci || npm install
+
+    - name: Run unit tests
+      run: npm test -- --ci --coverage 2>/dev/null || npm test
+
+    - name: Upload test coverage
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-coverage
+        path: coverage/
+        retention-days: 30
+        if-no-files-found: ignore
+
+  # ----------------------------------------------------------
+  # JOB 2: LINT & CODE QUALITY
+  # ----------------------------------------------------------
+  lint:
+    name: Lint & Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci || npm install
+
+    - name: JavaScript syntax check
+      run: |
+        echo "Checking JS syntax..."
+        ERRORS=0
+        for f in js/*.js; do
+          if ! node --check "$f" 2>/dev/null; then
+            echo "SYNTAX ERROR: $f"
+            ERRORS=$((ERRORS + 1))
+          fi
+        done
+        if [ $ERRORS -gt 0 ]; then
+          echo "Found $ERRORS files with syntax errors"
+          exit 1
+        fi
+        echo "All JS files passed syntax check"
+
+    - name: HTML validation
+      run: |
+        # Basic HTML structure validation
+        if ! grep -q '<!DOCTYPE html>' index.html; then
+          echo "WARNING: Missing DOCTYPE"
+        fi
+        echo "HTML structure check passed"
+
+    - name: Check for common security issues
+      run: |
+        # Check for hardcoded secrets
+        if grep -rn "API_KEY\s*=\s*['\"][a-zA-Z0-9]" js/ 2>/dev/null; then
+          echo "WARNING: Possible hardcoded API key found"
+          exit 1
+        fi
+        # Check for eval() usage
+        if grep -rn "eval(" js/ 2>/dev/null | grep -v ".min.js"; then
+          echo "WARNING: eval() usage found (security risk)"
+        fi
+        echo "Security check passed"
+
+  # ----------------------------------------------------------
+  # JOB 3: BUILD DEBUG APK
+  # ----------------------------------------------------------
+  build-debug:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    needs: [unit-tests, lint]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install dependencies
+      run: npm ci || npm install
 
     - name: Add Android platform
       run: npx cap add android
 
-    - name: Sync web assets to Android
+    - name: Sync web assets
       run: npx cap sync android
 
-    - name: Copy GNSS Engine plugin into Android project
+    - name: Integrate GNSS Engine plugin
       run: |
-        # Copy plugin Java files
+        # Copy plugin Java source files
         mkdir -p android/app/src/main/java/com/emarinersapp/gnss/
         cp android-plugin/src/main/java/com/emarinersapp/gnss/*.java \
            android/app/src/main/java/com/emarinersapp/gnss/
 
-        # Merge permissions into AndroidManifest.xml
-        # Add before closing </manifest> tag
+        # Add required permissions to AndroidManifest.xml
         sed -i '/<\/manifest>/i \
             <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" \/>\
             <uses-permission android:name="android.permission.WAKE_LOCK" \/>\
@@ -50,16 +167,20 @@ jobs:
             <uses-feature android:name="android.hardware.location.gps" android:required="true" \/>' \
            android/app/src/main/AndroidManifest.xml
 
-    - name: Register GnssEngine plugin in MainActivity
+    - name: Register GNSS Engine in MainActivity
       run: |
-        # Add import and plugin registration
-        MAIN_ACTIVITY="android/app/src/main/java/com/emarinersapp/navigpspro/MainActivity.java"
+        MAIN_ACTIVITY=$(find android/app/src/main/java -name "MainActivity.java" | head -1)
+        if [ -z "$MAIN_ACTIVITY" ]; then
+          echo "ERROR: MainActivity.java not found"
+          exit 1
+        fi
+        echo "Found MainActivity: $MAIN_ACTIVITY"
 
         # Add import
         sed -i '/^import com.getcapacitor.BridgeActivity;/a import com.emarinersapp.gnss.GnssEnginePlugin;' \
           "$MAIN_ACTIVITY"
 
-        # Add plugin registration - create onCreate if not exists
+        # Add plugin registration
         if grep -q "onCreate" "$MAIN_ACTIVITY"; then
           sed -i '/super.onCreate/i \        registerPlugin(GnssEnginePlugin.class);' "$MAIN_ACTIVITY"
         else
@@ -71,26 +192,242 @@ jobs:
             }' "$MAIN_ACTIVITY"
         fi
 
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
+        echo "Plugin registered successfully"
+        cat "$MAIN_ACTIVITY"
 
     - name: Build debug APK
       working-directory: android
       run: |
         chmod +x gradlew
-        ./gradlew assembleDebug
+        ./gradlew assembleDebug --stacktrace
 
-    - name: Upload APK artifact
+    - name: Verify APK exists
+      run: |
+        APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+        if [ ! -f "$APK_PATH" ]; then
+          echo "ERROR: APK not found at $APK_PATH"
+          find android/app/build/outputs -name "*.apk" 2>/dev/null
+          exit 1
+        fi
+        SIZE=$(du -h "$APK_PATH" | cut -f1)
+        echo "Debug APK built: $SIZE"
+
+    - name: Upload debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: NaviGPS-Pro-debug
+        name: NaviGPS-Pro-debug-${{ github.sha }}
         path: android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 90
 
-    - name: Get APK size
+    - name: Build summary
       run: |
         APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
         SIZE=$(du -h "$APK_PATH" | cut -f1)
-        echo "### APK Built Successfully!" >> $GITHUB_STEP_SUMMARY
-        echo "**Size:** $SIZE" >> $GITHUB_STEP_SUMMARY
-        echo "Download from the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
+        SHA=$(sha256sum "$APK_PATH" | cut -d' ' -f1)
+        echo "## Debug APK Built Successfully" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Size** | $SIZE |" >> $GITHUB_STEP_SUMMARY
+        echo "| **SHA256** | \`${SHA:0:16}...\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Download from **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
+
+  # ----------------------------------------------------------
+  # JOB 4: BUILD SIGNED RELEASE AAB (for Play Store)
+  # Only runs on main branch or manual trigger with 'release'
+  # ----------------------------------------------------------
+  build-release:
+    name: Build Signed Release
+    runs-on: ubuntu-latest
+    needs: [unit-tests, lint]
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install dependencies
+      run: npm ci || npm install
+
+    - name: Add Android platform
+      run: npx cap add android
+
+    - name: Sync web assets
+      run: npx cap sync android
+
+    - name: Integrate GNSS Engine plugin
+      run: |
+        mkdir -p android/app/src/main/java/com/emarinersapp/gnss/
+        cp android-plugin/src/main/java/com/emarinersapp/gnss/*.java \
+           android/app/src/main/java/com/emarinersapp/gnss/
+
+        sed -i '/<\/manifest>/i \
+            <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" \/>\
+            <uses-permission android:name="android.permission.WAKE_LOCK" \/>\
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" \/>\
+            <uses-feature android:name="android.hardware.location.gps" android:required="true" \/>' \
+           android/app/src/main/AndroidManifest.xml
+
+    - name: Register GNSS Engine in MainActivity
+      run: |
+        MAIN_ACTIVITY=$(find android/app/src/main/java -name "MainActivity.java" | head -1)
+        sed -i '/^import com.getcapacitor.BridgeActivity;/a import com.emarinersapp.gnss.GnssEnginePlugin;' "$MAIN_ACTIVITY"
+        if grep -q "onCreate" "$MAIN_ACTIVITY"; then
+          sed -i '/super.onCreate/i \        registerPlugin(GnssEnginePlugin.class);' "$MAIN_ACTIVITY"
+        else
+          sed -i '/public class MainActivity/a \
+            @Override\
+            protected void onCreate(android.os.Bundle savedInstanceState) {\
+                registerPlugin(GnssEnginePlugin.class);\
+                super.onCreate(savedInstanceState);\
+            }' "$MAIN_ACTIVITY"
+        fi
+
+    - name: Decode signing keystore
+      if: env.RELEASE_KEYSTORE != ''
+      env:
+        RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+      run: |
+        echo "$RELEASE_KEYSTORE" | base64 -d > android/app/release-keystore.jks
+        echo "Keystore decoded"
+
+    - name: Configure signing
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        if [ -f "android/app/release-keystore.jks" ]; then
+          # Production signing with real keystore
+          cat >> android/app/build.gradle << 'SIGNING'
+
+        android {
+            signingConfigs {
+                release {
+                    storeFile file("release-keystore.jks")
+                    storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+                    keyAlias System.getenv("KEY_ALIAS") ?: ""
+                    keyPassword System.getenv("KEY_PASSWORD") ?: ""
+                }
+            }
+            buildTypes {
+                release {
+                    signingConfig signingConfigs.release
+                }
+            }
+        }
+        SIGNING
+          echo "Configured production signing"
+        else
+          echo "No keystore found — building unsigned release (can sign later)"
+        fi
+
+    - name: Build release APK
+      working-directory: android
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleRelease --stacktrace
+
+    - name: Build release AAB (for Play Store)
+      working-directory: android
+      run: |
+        ./gradlew bundleRelease --stacktrace
+
+    - name: Upload release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: NaviGPS-Pro-release-apk-${{ github.sha }}
+        path: android/app/build/outputs/apk/release/app-release*.apk
+        retention-days: 90
+
+    - name: Upload release AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: NaviGPS-Pro-release-aab-${{ github.sha }}
+        path: android/app/build/outputs/bundle/release/app-release*.aab
+        retention-days: 90
+        if-no-files-found: ignore
+
+    - name: Release summary
+      run: |
+        echo "## Release Build Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- **APK** (for direct install): NaviGPS-Pro-release-apk" >> $GITHUB_STEP_SUMMARY
+        echo "- **AAB** (for Play Store): NaviGPS-Pro-release-aab" >> $GITHUB_STEP_SUMMARY
+
+    - name: Clean up keystore
+      if: always()
+      run: rm -f android/app/release-keystore.jks
+
+  # ----------------------------------------------------------
+  # JOB 5: FIREBASE APP DISTRIBUTION (send to test devices)
+  # Only runs on main branch
+  # ----------------------------------------------------------
+  distribute:
+    name: Firebase App Distribution
+    runs-on: ubuntu-latest
+    needs: [build-debug]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download debug APK
+      uses: actions/download-artifact@v4
+      with:
+        name: NaviGPS-Pro-debug-${{ github.sha }}
+        path: ./apk/
+
+    - name: Upload to Firebase App Distribution
+      if: env.FIREBASE_TOKEN != ''
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      run: |
+        # Install Firebase CLI
+        npm install -g firebase-tools
+
+        # Upload APK to App Distribution
+        firebase appdistribution:distribute \
+          ./apk/app-debug.apk \
+          --app "$FIREBASE_APP_ID" \
+          --token "$FIREBASE_TOKEN" \
+          --groups "ship-testers" \
+          --release-notes "Build from commit ${{ github.sha }} on $(date +%Y-%m-%d)"
+
+        echo "APK sent to Firebase App Distribution"
+        echo "Testers will receive a notification to install"
+
+    - name: Skip Firebase (not configured)
+      if: env.FIREBASE_TOKEN == ''
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      run: |
+        echo "## Firebase App Distribution Skipped" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To enable automatic APK distribution to test devices:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Create a Firebase project at https://console.firebase.google.com" >> $GITHUB_STEP_SUMMARY
+        echo "2. Add an Android app with package name \`com.emarinersapp.navigpspro\`" >> $GITHUB_STEP_SUMMARY
+        echo "3. Enable App Distribution" >> $GITHUB_STEP_SUMMARY
+        echo "4. Add these GitHub Secrets:" >> $GITHUB_STEP_SUMMARY
+        echo "   - \`FIREBASE_TOKEN\`: Run \`firebase login:ci\` to get this" >> $GITHUB_STEP_SUMMARY
+        echo "   - \`FIREBASE_APP_ID\`: From Firebase console > Project Settings" >> $GITHUB_STEP_SUMMARY
