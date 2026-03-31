@@ -20,15 +20,18 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
-    "@capacitor/core": "^6.1.0",
-    "@capacitor/cli": "^6.1.0",
+    "@capacitor-community/keep-awake": "^5.0.0",
     "@capacitor/android": "^6.1.0",
-    "@capacitor/ios": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
     "@capacitor/geolocation": "^6.0.0",
+    "@capacitor/ios": "^6.1.0",
     "@capacitor/motion": "^6.0.0",
-    "@capacitor/splash-screen": "^6.0.0",
-    "@capacitor/status-bar": "^6.0.0",
     "@capacitor/screen-orientation": "^6.0.0",
-    "@capacitor-community/keep-awake": "^5.0.0"
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
   }
 }

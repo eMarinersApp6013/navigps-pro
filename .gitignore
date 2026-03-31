@@ -3,7 +3,6 @@ node_modules/
 package-lock.json
 
 # Capacitor generated native projects
-android/
 ios/
 
 # Build output
