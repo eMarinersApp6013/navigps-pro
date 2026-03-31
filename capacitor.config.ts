@@ -3,8 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.emarinersapp.navigpspro',
   appName: 'NaviGPS Pro',
-  webDir: '.',
-  bundledWebRuntime: false,
+  webDir: 'www',
 
   // Server config — loads from local files (no remote server)
   server: {
