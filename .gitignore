@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Capacitor generated native projects
+ios/
+
+# Build output
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Signing keys (NEVER commit these)
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.provisionprofile
+release-signing.properties
