@@ -1,0 +1,387 @@
+/* ============================================================
+   CORE STYLES
+   ============================================================ */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body {
+  height:100%; overflow:hidden;
+  font-family:'IBM Plex Sans',sans-serif;
+  background:var(--bg-primary); color:var(--text-primary);
+  touch-action:manipulation;
+}
+.mono { font-family:'JetBrains Mono',monospace; }
+
+/* Layout */
+#app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+#header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 12px; background:var(--nav-bg); border-bottom:1px solid var(--border);
+  min-height:40px; flex-shrink:0; z-index:100;
+}
+#header .logo { font-weight:600; font-size:12px; letter-spacing:0.5px; color:var(--accent); white-space:nowrap; }
+#header .status-bar { display:flex; gap:6px; align-items:center; font-size:11px; }
+.status-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.status-dot.active { background:var(--accent); box-shadow:0 0 6px var(--accent); }
+.status-dot.inactive { background:var(--danger); }
+.status-dot.warning { background:var(--warning); }
+
+/* Manual mode badge */
+.manual-badge {
+  display:none; font-size:9px; font-weight:700; letter-spacing:1px;
+  color:#000; background:var(--warning); padding:1px 6px; border-radius:3px;
+}
+.manual-badge.show { display:inline-block; }
+
+/* Wake lock indicator */
+.wakelock-icon {
+  width:14px; height:14px; cursor:pointer; flex-shrink:0;
+}
+.wakelock-icon .lock-fill { transition: fill 0.3s; }
+
+#content { flex:1; overflow:hidden; position:relative; }
+.tab-panel { display:none; height:100%; overflow-y:auto; overflow-x:hidden; }
+.tab-panel.active { display:flex; flex-direction:column; height:100%; overflow-y:auto; overflow-x:hidden; }
+
+#nav {
+  display:flex; justify-content:space-around; align-items:center;
+  background:var(--nav-bg); border-top:1px solid var(--border);
+  padding:4px 0 calc(4px + env(safe-area-inset-bottom, 0px)) 0;
+  flex-shrink:0; z-index:100;
+}
+.nav-btn {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:4px 8px; border:none; background:none; color:var(--tab-inactive);
+  font-size:9px; font-family:'IBM Plex Sans',sans-serif; cursor:pointer;
+  transition:color .2s;
+}
+.nav-btn.active { color:var(--tab-active); }
+.nav-btn svg { width:20px; height:20px; }
+
+/* Cards */
+.card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:8px; padding:12px; margin:8px;
+}
+.card-title {
+  font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--text-secondary); margin-bottom:8px; font-weight:500;
+}
+
+/* Data displays */
+.data-large { font-size:28px; font-weight:600; line-height:1.1; }
+.data-medium { font-size:18px; font-weight:500; }
+.data-small { font-size:12px; font-weight:400; }
+.data-label { font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--text-secondary); margin-top:2px; }
+.data-unit { font-size:11px; color:var(--text-dim); margin-left:2px; }
+
+/* Hero position display — BIG LAT/LON */
+.pos-hero {
+  text-align:center; padding:4px 0;
+}
+.pos-hero-value {
+  font-size: clamp(36px, 8vw, 60px);
+  font-weight:700; line-height:1.15;
+  color:var(--position-color);
+  transition: color 0.3s;
+}
+.pos-hero-label {
+  font-size:10px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--text-secondary); margin-top:0;
+}
+
+/* GPS frozen state */
+.gps-frozen .pos-hero-value,
+.gps-frozen .hdg-value,
+.gps-frozen .spd-value,
+.gps-frozen [data-freeze] {
+  color: var(--danger) !important;
+}
+.last-known-label {
+  display:none; font-size:10px; color:var(--danger);
+  text-align:center; font-weight:600; letter-spacing:1px;
+  padding:2px 0; animation: pulse 1.5s infinite;
+}
+.gps-frozen .last-known-label { display:block; }
+
+/* GPS Lost banner */
+.gps-lost-banner {
+  display:none; padding:10px 12px; background:var(--danger); color:#fff;
+  font-size:14px; font-weight:700; text-align:center;
+  letter-spacing:2px; animation: gpslost-flash 0.8s infinite;
+  flex-shrink:0;
+}
+.gps-lost-banner.show { display:block; }
+@keyframes gpslost-flash {
+  0%,100% { opacity:1; }
+  50% { opacity:0.3; }
+}
+
+/* Position grid (compass area) */
+.pos-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.pos-value { color:var(--position-color); }
+.hdg-value { color:var(--heading-color); }
+.spd-value { color:var(--speed-color); }
+
+/* Compass Rose */
+.compass-container {
+  width:140px; height:140px; margin:0 auto; position:relative;
+}
+.compass-svg { width:100%; height:100%; }
+
+/* Accuracy bar */
+.accuracy-bar {
+  height:4px; border-radius:2px; background:var(--bg-input); margin-top:6px; overflow:hidden;
+}
+.accuracy-fill { height:100%; border-radius:2px; transition:width .5s,background .5s; }
+
+/* Warning banner */
+.warning-banner {
+  display:none; padding:8px 12px; background:var(--danger); color:#fff;
+  font-size:12px; font-weight:600; text-align:center; animation:pulse 1.5s infinite;
+  flex-shrink:0;
+}
+.warning-banner.show { display:block; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+/* Buttons */
+.btn {
+  padding:10px 20px; border:1px solid var(--border); border-radius:6px;
+  background:var(--bg-input); color:var(--text-primary); font-size:13px;
+  font-family:'IBM Plex Sans',sans-serif; cursor:pointer; transition:all .2s;
+}
+.btn:active { transform:scale(.97); }
+.btn-primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:600; }
+.btn-danger { background:var(--danger); color:#fff; border-color:var(--danger); }
+.btn-sm { padding:6px 12px; font-size:11px; }
+
+/* Inputs */
+.input {
+  padding:8px 12px; border:1px solid var(--border); border-radius:6px;
+  background:var(--bg-input); color:var(--text-primary); font-size:14px;
+  font-family:'JetBrains Mono',monospace; width:100%; outline:none;
+}
+.input:focus { border-color:var(--border-active); }
+
+/* Select */
+.select-wrap { position:relative; }
+.select-wrap select {
+  appearance:none; padding:8px 30px 8px 12px; border:1px solid var(--border);
+  border-radius:6px; background:var(--bg-input); color:var(--text-primary);
+  font-size:12px; font-family:'IBM Plex Sans',sans-serif; width:100%; outline:none;
+}
+.select-wrap::after {
+  content:'▾'; position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  color:var(--text-secondary); pointer-events:none; font-size:11px;
+}
+
+/* Toggle */
+.toggle-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; }
+.toggle-label { font-size:13px; }
+.toggle {
+  width:40px; height:22px; border-radius:11px; background:var(--bg-input);
+  border:1px solid var(--border); position:relative; cursor:pointer; transition:all .2s;
+}
+.toggle.on { background:var(--accent); border-color:var(--accent); }
+.toggle::after {
+  content:''; position:absolute; width:16px; height:16px; border-radius:50%;
+  background:#fff; top:2px; left:2px; transition:transform .2s;
+}
+.toggle.on::after { transform:translateX(18px); }
+
+/* Settings panel */
+#settings-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+  z-index:200; justify-content:center; align-items:flex-end;
+}
+#settings-overlay.show { display:flex; }
+#settings-panel {
+  background:var(--bg-secondary); border-radius:16px 16px 0 0;
+  width:100%; max-width:500px; max-height:80vh; overflow-y:auto;
+  padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.settings-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.settings-close { background:none; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer; padding:4px; }
+
+/* Chart panel */
+#chart-map { flex:1; width:100%; min-height:0; }
+#tab-chart { position:relative; }
+
+/* Share panel */
+.share-code {
+  font-size:48px; font-weight:700; letter-spacing:12px; text-align:center;
+  color:var(--accent); padding:20px; font-family:'JetBrains Mono',monospace;
+}
+.share-status { text-align:center; font-size:13px; color:var(--text-secondary); padding:8px; }
+.code-input-wrap { display:flex; gap:8px; padding:0 20px; }
+
+/* Celestial canvas — ensure responsive sizing */
+#celestial-canvas { width:100%; flex:1; min-height:300px; display:block; }
+#tab-celestial { overflow-y:auto; }
+#tab-celestial > div[style*="flex:1"] { min-height:300px; }
+
+/* Skyplot canvas */
+#skyplot-canvas { width:100%; max-width:400px; margin:0 auto; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:var(--bg-primary); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* Compare mode */
+.compare-diff {
+  padding:6px 10px; border-radius:4px; font-size:12px; text-align:center; margin-top:6px;
+}
+.compare-diff.ok { background:#00e67622; color:#00e676; }
+.compare-diff.warn { background:#ffab0022; color:#ffab00; }
+.compare-diff.danger { background:#ff3d3d22; color:#ff3d3d; }
+
+/* Star detail popup */
+#starDetailPopup {
+  display:none; position:fixed; z-index:300;
+  background:var(--bg-card); border:1px solid var(--border-active);
+  border-radius:8px; padding:12px 16px; min-width:220px; max-width:300px;
+  box-shadow:0 4px 24px rgba(0,0,0,.6); pointer-events:auto;
+}
+#starDetailPopup .popup-title {
+  font-size:14px; font-weight:700; margin-bottom:6px;
+  font-family:'JetBrains Mono',monospace;
+}
+#starDetailPopup .popup-row {
+  display:flex; justify-content:space-between; font-size:11px; padding:2px 0;
+  border-bottom:1px solid var(--border);
+}
+#starDetailPopup .popup-row:last-child { border-bottom:none; }
+#starDetailPopup .popup-label { color:var(--text-secondary); }
+#starDetailPopup .popup-value { font-family:'JetBrains Mono',monospace; color:var(--text-primary); }
+#starDetailPopup .popup-close {
+  position:absolute; top:6px; right:10px; background:none; border:none;
+  color:var(--text-secondary); font-size:16px; cursor:pointer;
+}
+
+/* ============================================================
+   MANUAL POSITION ENTRY BAR
+   ============================================================ */
+#manualBar {
+  background:var(--bg-secondary); border-bottom:1px solid var(--border);
+  flex-shrink:0; overflow:hidden;
+}
+#manualToggle {
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:5px 12px; cursor:pointer; font-size:11px;
+  color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase;
+  border:none; background:none; width:100%;
+  font-family:'IBM Plex Sans',sans-serif;
+}
+#manualToggle:hover { color:var(--text-primary); }
+#manualContent {
+  display:none; padding:8px 12px 10px;
+}
+#manualContent.show { display:block; }
+.manual-row {
+  display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+}
+.manual-row .input { width:auto; flex:1; min-width:100px; font-size:13px; padding:6px 8px; }
+.manual-row .select-wrap { width:48px; flex-shrink:0; }
+.manual-row .select-wrap select { padding:6px 20px 6px 6px; font-size:12px; }
+.manual-row .btn { padding:6px 10px; font-size:11px; white-space:nowrap; }
+.manual-format {
+  font-size:10px; color:var(--accent); margin-top:2px; text-align:center;
+}
+
+/* ============================================================
+   POSITION COMPARE — Condensed single-row
+   ============================================================ */
+.compare-row {
+  display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+}
+.compare-row .input { width:auto; flex:1; min-width:70px; font-size:12px; padding:6px 8px; }
+.compare-row .select-wrap { width:44px; flex-shrink:0; }
+.compare-row .select-wrap select { padding:6px 18px 6px 4px; font-size:11px; }
+.compare-row label { font-size:10px; color:var(--text-secondary); letter-spacing:1px; white-space:nowrap; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(min-width:768px) {
+  .pos-grid { grid-template-columns:1fr 1fr 1fr 1fr; }
+  .data-large { font-size:36px; }
+  .compass-container { width:180px; height:180px; }
+  .nav-btn { font-size:10px; }
+  .nav-btn svg { width:22px; height:22px; }
+  #header .logo { font-size:13px; }
+  .card { margin:10px 16px; padding:16px; }
+  .pos-hero-value { font-size: clamp(48px, 6vw, 64px); }
+}
+@media(min-width:1024px) {
+  .desktop-grid { display:grid; grid-template-columns:1fr 1fr; }
+}
+
+/* ============================================================
+   CHART CONTROL BUTTONS
+   ============================================================ */
+.chart-ctrl-btn {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  width:40px; height:40px; border-radius:8px;
+  background:var(--bg-card); border:1px solid var(--border);
+  color:var(--text-primary); cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.chart-ctrl-btn:active { transform:scale(.93); }
+
+/* ============================================================
+   CONSTELLATION TOGGLE BUTTONS
+   ============================================================ */
+.constellation-toggle {
+  cursor:pointer; transition:all .2s; position:relative;
+}
+.constellation-toggle.off {
+  opacity:0.35; text-decoration:line-through;
+}
+
+/* ============================================================
+   CELESTIAL MODE TOGGLE
+   ============================================================ */
+.celestial-mode-btn {
+  font-weight:600; letter-spacing:1px; font-size:11px;
+  transition:all .2s;
+}
+.celestial-mode-btn.active {
+  background:var(--accent); color:#000; border-color:var(--accent);
+}
+
+/* ============================================================
+   PORT MARKERS
+   ============================================================ */
+.port-marker-label {
+  background:var(--bg-card); color:#ff8a65; border:1px solid #ff8a6588;
+  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;
+  font-family:'JetBrains Mono',monospace; white-space:nowrap;
+  cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.3);
+  transition: all 0.2s;
+}
+.port-marker-label:hover {
+  background:#ff8a65; color:#000; border-color:#ff8a65;
+}
+/* Active (clicked) port marker — bold highlight */
+.port-marker-label.port-marker-active {
+  background:#ff8a65; color:#000; border-color:#ff8a65;
+  font-weight:800; font-size:11px; padding:3px 8px;
+  box-shadow:0 2px 8px rgba(255,138,101,.5);
+  z-index:1000 !important;
+}
+
+/* Port loading spinner */
+.port-loading-spinner {
+  display:inline-block; width:16px; height:16px; border:2px solid #ff8a6533;
+  border-top:2px solid #ff8a65; border-radius:50%; margin:0 auto 4px;
+  animation: port-spin 0.8s linear infinite;
+}
+@keyframes port-spin { to { transform: rotate(360deg); } }
+.port-loading { pointer-events:none; opacity:0.7; }
+
+/* GNSS spoofing alert animation */
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+#spoofAlertBanner { z-index:1000; position:relative; }
+/* Constellation row hover */
+.constellation-row { transition: background 0.2s; cursor: pointer; }
+.constellation-row:hover { background: #1a2a3a !important; }
+.constellation-row.primary { border: 1px solid #00e676; }

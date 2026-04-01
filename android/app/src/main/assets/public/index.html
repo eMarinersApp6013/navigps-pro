@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e14">
+<title>eMarinersApp NaviGPS Pro — Maritime Position System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- GPS LOST Flashing Banner -->
+  <div class="gps-lost-banner" id="gpsLostBanner">GPS LOST</div>
+
+  <!-- Spoofing Detection Banner -->
+  <div class="warning-banner" id="spoofingBanner" style="background:#ff8a00;animation:gpslost-flash 1.2s infinite">GPS SPOOFING DETECTED — Position Unreliable — DR Mode Active</div>
+
+  <!-- Warning Banner -->
+  <div class="warning-banner" id="gpsWarning">GPS ACCURACY DEGRADED — Position Unreliable</div>
+
+  <!-- Header -->
+  <div id="header">
+    <div class="logo">eMarinersApp NaviGPS Pro</div>
+    <div class="status-bar">
+      <span class="manual-badge" id="manualBadge">MANUAL</span>
+      <span class="manual-badge" id="remoteBadge" style="background:var(--info)">REMOTE <span id="remoteCodeLabel"></span></span>
+      <span class="manual-badge" id="drBadge" style="background:#ff8a00;color:#000">DR MODE</span>
+      <button id="refreshBtn" onclick="manualRefresh()" title="Refresh position & page" style="background:none;border:1px solid var(--border);border-radius:4px;padding:2px 4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex-shrink:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      </button>
+      <span class="mono" id="utcClock" style="font-size:12px;color:var(--accent)">--:--:-- UTC</span>
+      <span class="mono" id="gpsAge" style="font-size:10px;color:var(--accent)"></span>
+      <!-- Wake Lock Indicator -->
+      <svg class="wakelock-icon" id="wakelockIcon" viewBox="0 0 24 24" title="Screen keep-awake status">
+        <rect class="lock-fill" x="5" y="11" width="14" height="10" rx="2" fill="var(--danger)" stroke="var(--text-secondary)" stroke-width="1.5"/>
+        <path d="M8 11V7a4 4 0 018 0v4" fill="none" stroke="var(--text-secondary)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="status-dot inactive" id="gpsStatusDot" title="GPS Status"></span>
+      <svg onclick="openSettings()" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" style="cursor:pointer">
+        <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Manual Position Entry Bar -->
+  <div id="manualBar">
+    <button id="manualToggle" onclick="toggleManualBar()">
+      <span>Manual Position</span>
+      <span id="manualArrow">&#x25BC;</span>
+    </button>
+    <div id="manualContent">
+      <div class="manual-row" style="margin-bottom:6px">
+        <label>Lat</label>
+        <input class="input mono" id="manualLatInput" placeholder="2234.567" style="font-size:13px" oninput="autoFormatManualCoord(this,'lat')">
+        <div class="select-wrap" style="width:48px;flex-shrink:0">
+          <select id="manualLatNS" style="padding:6px 20px 6px 6px;font-size:12px">
+            <option value="N">N</option>
+            <option value="S">S</option>
+          </select>
+        </div>
+        <label>Lon</label>
+        <input class="input mono" id="manualLonInput" placeholder="05512.340" style="font-size:13px" oninput="autoFormatManualCoord(this,'lon')">
+        <div class="select-wrap" style="width:48px;flex-shrink:0">
+          <select id="manualLonEW" style="padding:6px 20px 6px 6px;font-size:12px">
+            <option value="E">E</option>
+            <option value="W">W</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:4px">
+          <span class="mono" style="font-size:10px;color:var(--accent)" id="manualLatFormatted">--°--.---'</span>
+          <span class="mono" style="font-size:10px;color:var(--accent)" id="manualLonFormatted">---°--.---'</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="setManualPosition()">Set Manual</button>
+          <button class="btn btn-sm" onclick="useGPSPosition()">Use GPS</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GPS SPOOFING ALERT BANNER (hidden by default, shown by NativeBridge) -->
+  <div id="spoofAlertBanner" style="display:none;background:#ff1744;color:#fff;padding:8px 12px;font-size:11px;text-align:center;font-weight:600;cursor:pointer;animation:blink 1s infinite" onclick="document.getElementById('spoofAlertBanner').style.display='none'">
+    GPS SPOOFING DETECTED
+  </div>
+
+  <!-- Platform indicator -->
+  <div style="display:flex;justify-content:center;padding:2px 0">
+    <span id="platformIndicator" class="mono" style="font-size:9px;color:#5a7a9a;letter-spacing:1px">WEB MODE</span>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+    <!-- TAB 1: NAV DISPLAY -->
+    <div class="tab-panel active" id="tab-nav">
+
+      <!-- GNSS CONSTELLATION CONTROL PANEL (native app only) -->
+      <div class="card gnss-android" id="gnssControlPanel" style="display:none;border-color:#2196F3;padding:8px 10px">
+        <div class="card-title" style="color:#2196F3">GNSS CONSTELLATION CONTROL</div>
+
+        <!-- Constellation toggle switches -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0">
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #4CAF50">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('gps',this.checked)" style="accent-color:#4CAF50">
+            <span style="font-size:11px;font-weight:600;color:#4CAF50">GPS</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="gpsCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #2196F3">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('glonass',this.checked)" style="accent-color:#2196F3">
+            <span style="font-size:11px;font-weight:600;color:#2196F3">GLONASS</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="glonassCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #FF9800">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('galileo',this.checked)" style="accent-color:#FF9800">
+            <span style="font-size:11px;font-weight:600;color:#FF9800">GALILEO</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="galileoCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #f44336">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('beidou',this.checked)" style="accent-color:#f44336">
+            <span style="font-size:11px;font-weight:600;color:#f44336">BEIDOU</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="beidouCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #9C27B0">
+            <input type="checkbox" onchange="NativeBridge.setConstellation('navic',this.checked)" style="accent-color:#9C27B0">
+            <span style="font-size:11px;font-weight:600;color:#9C27B0">NavIC</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="navicCount">--</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#0d1b2a;border-radius:4px;cursor:pointer;border-left:3px solid #795548">
+            <input type="checkbox" checked onchange="NativeBridge.setConstellation('sbas',this.checked)" style="accent-color:#795548">
+            <span style="font-size:11px;font-weight:600;color:#795548">SBAS</span>
+            <span style="font-size:9px;color:#6a7a95;margin-left:auto" id="sbasCount">--</span>
+          </label>
+        </div>
+
+        <!-- Primary constellation selector -->
+        <div style="display:flex;gap:6px;align-items:center;margin:6px 0 2px 0">
+          <label style="font-size:10px;color:#8a9ab5;white-space:nowrap">PRIMARY:</label>
+          <div class="select-wrap" style="flex:1">
+            <select id="primaryConstellationSelect" onchange="NativeBridge.setPrimaryConstellation(this.value)" style="font-size:11px;padding:4px 8px">
+              <option value="AUTO">AUTO (Best Available)</option>
+              <option value="GPS">GPS Only</option>
+              <option value="GLONASS">GLONASS Only</option>
+              <option value="GALILEO">Galileo Only</option>
+              <option value="BEIDOU">BeiDou Only</option>
+              <option value="NAVIC">NavIC Only</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Spoofing status -->
+        <div id="spoofStatus" style="font-size:10px;padding:4px 6px;margin-top:4px;background:#0d1b2a;border-radius:4px;text-align:center">
+          <span style="color:#8a9ab5">Waiting for multi-constellation fix...</span>
+        </div>
+
+        <!-- Per-constellation position comparison -->
+        <div id="constellationStatus" style="margin-top:4px;font-size:10px"></div>
+      </div>
+
+      <!-- Web mode message (shown only on web browser) -->
+      <div class="web-only" id="webModeNote" style="padding:4px 12px">
+        <div style="font-size:9px;color:#5a7a9a;text-align:center;border:1px dashed #1a2a40;border-radius:4px;padding:4px 8px">
+          Web mode: Using browser GPS. Install the mobile app for multi-constellation GNSS, satellite selection, and spoofing detection.
+        </div>
+      </div>
+
+      <!-- Hero Position Display — BIG LAT/LON -->
+      <div class="card" style="padding:10px 12px">
+        <div class="card-title">Position</div>
+        <div class="pos-hero">
+          <div class="pos-hero-value mono" id="latDisplay">--°--.---'N</div>
+          <div class="pos-hero-label">Latitude</div>
+        </div>
+        <div class="pos-hero" style="margin-top:2px">
+          <div class="pos-hero-value mono" id="lonDisplay">---°--.---'E</div>
+          <div class="pos-hero-label">Longitude</div>
+        </div>
+        <!-- Last Known label (shown when GPS frozen) -->
+        <div class="last-known-label" id="lastKnownLabel">LAST KNOWN</div>
+        <div class="accuracy-bar"><div class="accuracy-fill" id="accFill" style="width:0;background:var(--danger)"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span class="data-label" data-freeze id="accLabel">Accuracy: --m</span>
+          <span class="data-label" data-freeze id="altLabel">Alt: --m</span>
+          <span class="data-label" style="font-weight:700">Depth: <span id="navDepthDisplay" style="color:var(--info, #2a7fff)">--</span></span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;padding:0 8px">
+        <!-- COG/SOG -->
+        <div class="card" style="margin:0">
+          <div class="card-title">Course / Speed</div>
+          <div>
+            <span class="data-large mono hdg-value" data-freeze id="cogDisplay">---</span>
+            <span class="data-unit">°T</span>
+          </div>
+          <div class="data-label">COG (GPS)</div>
+          <div style="margin-top:8px">
+            <span class="data-large mono spd-value" data-freeze id="sogDisplay">--.--</span>
+            <span class="data-unit">kn</span>
+          </div>
+          <div class="data-label">SOG</div>
+        </div>
+
+        <!-- Compass -->
+        <div class="card" style="margin:0;display:flex;flex-direction:column;align-items:center">
+          <div class="card-title">Compass</div>
+          <div class="compass-container">
+            <svg class="compass-svg" viewBox="0 0 200 200" id="compassSvg">
+              <circle cx="100" cy="100" r="90" fill="none" stroke="var(--grid-color)" stroke-width="1"/>
+              <circle cx="100" cy="100" r="60" fill="none" stroke="var(--grid-color)" stroke-width=".5"/>
+              <circle cx="100" cy="100" r="30" fill="none" stroke="var(--grid-color)" stroke-width=".5"/>
+              <g id="compassTicks"></g>
+              <text x="100" y="20" text-anchor="middle" fill="var(--danger)" font-size="12" font-weight="700" font-family="JetBrains Mono">N</text>
+              <text x="185" y="104" text-anchor="middle" fill="var(--text-secondary)" font-size="10" font-family="JetBrains Mono">E</text>
+              <text x="100" y="192" text-anchor="middle" fill="var(--text-secondary)" font-size="10" font-family="JetBrains Mono">S</text>
+              <text x="16" y="104" text-anchor="middle" fill="var(--text-secondary)" font-size="10" font-family="JetBrains Mono">W</text>
+              <polygon id="compassNeedle" points="100,18 95,100 105,100" fill="var(--compass-rose)" opacity="0.9"/>
+              <circle cx="100" cy="100" r="4" fill="var(--bg-card)" stroke="var(--compass-rose)" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div>
+            <span class="mono data-medium hdg-value" data-freeze id="hdgDisplay">---</span>
+            <span class="data-unit">°M</span>
+          </div>
+          <div class="data-label" id="hdgSource">Compass</div>
+        </div>
+
+        <!-- Variation & Extras -->
+        <div class="card" style="margin:0">
+          <div class="card-title">Magnetic Var</div>
+          <div>
+            <span class="data-large mono" style="color:var(--warning)" data-freeze id="varDisplay">--.--</span>
+            <span class="data-unit" id="varDir">--</span>
+          </div>
+          <div class="data-label">WMM 2025</div>
+          <div style="margin-top:8px">
+            <span class="data-medium mono hdg-value" data-freeze id="trueHdgDisplay">---</span>
+            <span class="data-unit">°T</span>
+          </div>
+          <div class="data-label">True Heading</div>
+          <div style="margin-top:8px">
+            <span class="data-small mono" style="color:var(--text-secondary)" id="posTimestamp">--:--:--</span>
+          </div>
+          <div class="data-label">Last Fix</div>
+        </div>
+      </div>
+
+      <!-- Position Compare — Condensed single-row -->
+      <div class="card">
+        <div class="card-title">Position Compare (Ship GPS vs Phone)</div>
+        <div class="compare-row">
+          <label>Lat</label>
+          <input class="input mono" id="shipLatRaw" placeholder="22345" oninput="autoFormatCoord(this,'lat')">
+          <div class="select-wrap">
+            <select id="shipLatNS"><option value="N">N</option><option value="S">S</option></select>
+          </div>
+          <label>Lon</label>
+          <input class="input mono" id="shipLonRaw" placeholder="0551234" oninput="autoFormatCoord(this,'lon')">
+          <div class="select-wrap">
+            <select id="shipLonEW"><option value="E">E</option><option value="W">W</option></select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="comparePositions()">Compare</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <span class="mono" style="font-size:10px;color:var(--accent)" id="shipLatFormatted">--°--.---'</span>
+          <span class="mono" style="font-size:10px;color:var(--accent)" id="shipLonFormatted">---°--.---'</span>
+        </div>
+        <div class="compare-diff" id="compareDiff" style="display:none"></div>
+      </div>
+
+      <!-- SPOOFING DETECTION & ALTERNATIVE POSITION PANEL -->
+      <div class="card" id="antiSpoofPanel" style="border-color:#ff8a00">
+        <div class="card-title" style="color:#ff8a00">Anti-Spoofing — Alternative Position Sources</div>
+        <div class="data-small" style="color:var(--text-secondary);margin-bottom:8px">
+          When GPS is spoofed, use these GPS-independent methods to get your actual position.
+        </div>
+
+        <!-- Spoofing Alerts -->
+        <div id="spoofAlertList" style="margin-bottom:8px"></div>
+
+        <!-- Dead Reckoning Panel -->
+        <div id="drPanel" style="display:none;border:1px solid #ff8a0044;border-radius:6px;padding:8px;margin-bottom:8px;background:#ff8a0008">
+          <div style="font-weight:600;color:#ff8a00;font-size:10px;letter-spacing:1px;margin-bottom:6px">DEAD RECKONING POSITION</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+            <div><span class="data-label">DR Latitude</span><div class="mono" style="font-size:16px;font-weight:700;color:#ff8a00" id="drLat">--</div></div>
+            <div><span class="data-label">DR Longitude</span><div class="mono" style="font-size:16px;font-weight:700;color:#ff8a00" id="drLon">--</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:6px">
+            <div><span class="data-label">Heading</span><div class="mono data-small" id="drHdg">--</div></div>
+            <div><span class="data-label">Speed</span><div class="mono data-small" id="drSpd">--</div></div>
+            <div><span class="data-label">DR Age</span><div class="mono data-small" id="drAge">--</div></div>
+            <div><span class="data-label">Uncertainty</span><div class="mono data-small" id="drUncertainty">--</div></div>
+          </div>
+          <div class="data-label" id="drSource" style="margin-bottom:4px">--</div>
+          <div class="data-label" id="drGoodPosLabel" style="margin-bottom:6px;color:var(--accent)">No good position saved</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" onclick="useDRPosition()">Use DR as Position</button>
+            <button class="btn btn-sm" onclick="setDRGoodPosition()">Save Current as Good</button>
+            <button class="btn btn-sm btn-danger" onclick="stopDeadReckoning();removeDRFromMap()">Stop DR</button>
+          </div>
+        </div>
+
+        <!-- DR Controls (always visible) -->
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:#ff8a0022;color:#ff8a00;border-color:#ff8a0055" onclick="startDeadReckoning()">Start DR Manually</button>
+          <button class="btn btn-sm" style="background:#ce93d822;color:#ce93d8;border-color:#ce93d855" onclick="fetchIPGeolocation()">Check IP Location</button>
+        </div>
+
+        <!-- IP Geolocation Panel -->
+        <div style="border:1px solid #ce93d844;border-radius:6px;padding:8px;margin-bottom:8px;background:#ce93d808">
+          <div style="font-weight:600;color:#ce93d8;font-size:10px;letter-spacing:1px;margin-bottom:4px">IP GEOLOCATION (NO GPS NEEDED)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px">
+            <div><span class="data-label">IP Latitude</span><div class="mono data-small" id="ipGeoLat">--</div></div>
+            <div><span class="data-label">IP Longitude</span><div class="mono data-small" id="ipGeoLon">--</div></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:4px">
+            <div><span class="data-label">Location: </span><span class="data-small" id="ipGeoLocation">--</span></div>
+            <div><span class="data-label">Accuracy: </span><span class="data-small" id="ipGeoAccuracy">--</span></div>
+          </div>
+          <div class="data-small" id="ipGeoStatus" style="color:var(--text-dim);margin-bottom:4px">Click "Check IP Location" above</div>
+          <div class="compare-diff" id="ipGeoCompare" style="display:none"></div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn btn-sm" onclick="useIPGeoPosition()" style="font-size:10px">Use IP as Rough Position</button>
+            <button class="btn btn-sm" onclick="showIPGeoOnChart()" style="font-size:10px">Show on Chart</button>
+          </div>
+        </div>
+
+        <!-- Celestial Fix Link -->
+        <div style="font-size:10px;color:var(--text-secondary)">
+          For precise GPS-independent position: go to <b style="color:#ffd54f">STARS</b> tab → <b style="color:#ffd54f">Celestial Fix</b> calculator.
+          Take sextant observations of Sun/Stars → get actual position from celestial navigation.
+        </div>
+      </div>
+
+      <!-- MOB Info Panel -->
+      <div class="card" id="mobInfoPanel" style="display:none;border-color:var(--danger)">
+        <div class="card-title" style="color:var(--danger)">MAN OVERBOARD</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="text-align:center"><div class="data-medium mono" style="color:var(--danger)" id="mobDist">--</div><div class="data-label">Distance</div></div>
+          <div style="text-align:center"><div class="data-medium mono" style="color:var(--danger)" id="mobBrg">--</div><div class="data-label">Bearing</div></div>
+          <div style="text-align:center"><div class="data-small mono" id="mobTime">--:--:--</div><div class="data-label">MOB Time</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
+          <button class="btn btn-sm btn-primary" onclick="goToMOB()">Go To MOB</button>
+          <button class="btn btn-sm btn-danger" onclick="clearMOB()">Clear MOB</button>
+        </div>
+      </div>
+
+      <!-- Anchor Watch Panel -->
+      <div class="card" id="anchorWatchPanel" style="display:none;border-color:var(--accent)">
+        <div class="card-title" style="color:var(--accent)">Anchor Watch</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="text-align:center"><div class="data-medium mono" style="color:var(--accent)" id="anchorDist">--</div><div class="data-label">From Anchor</div></div>
+          <div style="text-align:center"><div class="data-medium mono" id="anchorBrg">--</div><div class="data-label">Bearing</div></div>
+        </div>
+        <div class="accuracy-bar" style="margin:0"><div id="anchorDistBar" style="height:100%;border-radius:2px;width:0;background:var(--accent)"></div></div>
+      </div>
+
+      <!-- Anchor controls -->
+      <div class="card">
+        <div class="card-title">Anchor Watch</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" id="dropAnchorBtn" onclick="dropAnchor()">Drop Anchor</button>
+          <button class="btn btn-sm btn-danger" id="weighAnchorBtn" onclick="weighAnchor()" style="display:none">Weigh Anchor</button>
+          <span class="data-label">Radius:</span>
+          <input type="range" id="anchorRadiusSlider" min="50" max="500" value="100" step="10" style="flex:1;min-width:80px" oninput="updateAnchorRadius(this.value)">
+          <span class="data-small mono" id="anchorRadiusLabel">100m</span>
+        </div>
+      </div>
+
+      <!-- Bearing & Distance Calculator -->
+      <div class="card">
+        <div class="card-title">Bearing &amp; Distance Calculator</div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto 1fr auto;gap:4px;align-items:center;margin-bottom:6px">
+          <span class="data-label">A Lat</span>
+          <input class="input mono" id="brgLatA" placeholder="25.000" style="font-size:12px;padding:5px 6px">
+          <div class="select-wrap" style="width:36px"><select id="brgLatADir" style="font-size:10px;padding:5px 16px 5px 4px"><option>N</option><option>S</option></select></div>
+          <input class="input mono" id="brgLonA" placeholder="55.000" style="font-size:12px;padding:5px 6px">
+          <div class="select-wrap" style="width:36px"><select id="brgLonADir" style="font-size:10px;padding:5px 16px 5px 4px"><option>E</option><option>W</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto 1fr auto;gap:4px;align-items:center;margin-bottom:6px">
+          <span class="data-label">B Lat</span>
+          <input class="input mono" id="brgLatB" placeholder="26.000" style="font-size:12px;padding:5px 6px">
+          <div class="select-wrap" style="width:36px"><select id="brgLatBDir" style="font-size:10px;padding:5px 16px 5px 4px"><option>N</option><option>S</option></select></div>
+          <input class="input mono" id="brgLonB" placeholder="56.000" style="font-size:12px;padding:5px 6px">
+          <div class="select-wrap" style="width:36px"><select id="brgLonBDir" style="font-size:10px;padding:5px 16px 5px 4px"><option>E</option><option>W</option></select></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="btn btn-sm btn-primary" onclick="calcBearingDistance()">Calculate</button>
+          <button class="btn btn-sm" onclick="useCurrentAsPointA()">Use Current Pos as A</button>
+          <button class="btn btn-sm" onclick="enableChartBearing()">Chart Pick</button>
+        </div>
+        <div class="data-small" id="brgChartStatus" style="color:var(--text-dim);margin-bottom:4px"></div>
+        <div id="brgResult"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CHART -->
+    <div class="tab-panel" id="tab-chart">
+      <!-- Search Bar — moved right to avoid zoom controls -->
+      <div style="position:absolute;top:8px;left:56px;right:8px;z-index:600">
+        <input class="input" id="chartSearchInput" placeholder="Search port, harbour, city..." style="background:var(--bg-card);opacity:0.95;font-size:13px;padding:8px 12px">
+        <div id="chartSearchResults" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Chart Control Buttons (right side, below search) -->
+      <div id="chartControls" style="position:absolute;top:52px;right:8px;z-index:600;display:flex;flex-direction:column;gap:6px">
+        <!-- Home Button -->
+        <button class="chart-ctrl-btn" onclick="chartGoHome()" title="Go to ship position">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V12h6v9"/></svg>
+        </button>
+        <!-- Depth Zoom Button -->
+        <button class="chart-ctrl-btn" onclick="chartDepthZoom()" title="Zoom to view depths">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a7fff" stroke-width="2"><path d="M12 2v6M12 16v6M2 12h6M16 12h6"/><circle cx="12" cy="12" r="4" fill="#2a7fff33"/></svg>
+          <span style="font-size:7px;color:#2a7fff;margin-top:-2px">DEPTH</span>
+        </button>
+        <!-- Clear Track Button -->
+        <button class="chart-ctrl-btn" onclick="clearTrackTrail()" title="Clear track trail">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00e676" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          <span style="font-size:7px;color:#00e676;margin-top:-2px">TRACK</span>
+        </button>
+        <!-- Load Ports Button -->
+        <button class="chart-ctrl-btn" onclick="loadNearbyPorts()" title="Show nearby ports">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff8a65" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
+          <span style="font-size:7px;color:#ff8a65;margin-top:-2px">PORTS</span>
+        </button>
+      </div>
+
+      <!-- Draft / UKC Panel -->
+      <div id="draftUkcPanel" style="position:absolute;top:52px;left:8px;z-index:500;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:11px;opacity:0.95;min-width:170px">
+        <div style="font-weight:600;color:var(--accent);font-size:10px;letter-spacing:1px;margin-bottom:4px">DEPTH / UKC</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+          <label style="font-size:10px;color:var(--text-secondary);white-space:nowrap">Draft (m):</label>
+          <input class="input mono" id="vesselDraft" type="number" step="0.1" min="0" max="30" value="" placeholder="0.0" style="width:60px;font-size:12px;padding:4px 6px" oninput="updateUKC()">
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px">
+          <div><span style="color:var(--text-secondary)">Depth:</span> <span class="mono" id="cursorDepth" style="color:#2a7fff">--</span><span style="color:var(--text-dim)">m</span></div>
+          <div><span style="color:var(--text-secondary)">UKC:</span> <span class="mono" id="ukcDisplay" style="font-weight:700">--</span><span style="color:var(--text-dim)">m</span></div>
+        </div>
+        <div id="ukcWarning" style="display:none;font-size:10px;font-weight:600;color:var(--danger);margin-top:2px">LOW UKC WARNING</div>
+      </div>
+
+      <!-- Weather Panel with Visual Compass -->
+      <div class="card" id="weatherPanel" style="display:none;position:absolute;bottom:60px;right:8px;z-index:500;max-width:320px;padding:8px 10px;font-size:11px;opacity:0.95">
+        <div class="card-title" style="cursor:pointer" onclick="toggleWeatherExpand()">Weather <span id="weatherExpandIcon" style="font-size:8px">&#9660;</span></div>
+        <div id="weatherCompact"></div>
+        <div id="weatherExpanded" style="display:none">
+          <div style="text-align:center;margin:8px 0">
+            <svg id="weatherCompassSvg" width="240" height="240" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="90" fill="none" stroke="var(--grid-color)" stroke-width="1"/>
+              <circle cx="100" cy="100" r="60" fill="none" stroke="var(--grid-color)" stroke-width=".5"/>
+              <circle cx="100" cy="100" r="30" fill="none" stroke="var(--grid-color)" stroke-width=".3"/>
+              <text x="100" y="16" text-anchor="middle" fill="var(--danger)" font-size="12" font-weight="700" font-family="JetBrains Mono">N</text>
+              <text x="188" y="104" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-family="JetBrains Mono">E</text>
+              <text x="100" y="195" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-family="JetBrains Mono">S</text>
+              <text x="14" y="104" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-family="JetBrains Mono">W</text>
+              <!-- Ship icon at center — BIGGER for visibility -->
+              <g id="weatherShipIcon" transform="rotate(0,100,100)">
+                <polygon points="100,55 88,115 100,105 112,115" fill="#00e676" stroke="#000" stroke-width="1" opacity="0.95"/>
+                <line x1="100" y1="55" x2="100" y2="45" stroke="#00e676" stroke-width="2" opacity="0.6"/>
+              </g>
+              <!-- Wind arrow -->
+              <g id="weatherWindArrow"></g>
+              <!-- Current arrow -->
+              <g id="weatherCurrentArrow"></g>
+              <!-- Swell arrow -->
+              <g id="weatherSwellArrow"></g>
+            </svg>
+          </div>
+          <div style="display:flex;justify-content:center;gap:10px;font-size:10px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="color:#4fc3f7">&#9654; Wind</span>
+            <span style="color:#ff8a65">&#9654; Current</span>
+            <span style="color:#7e57c2">&#9654; Swell</span>
+            <span style="color:#00e676">&#9650; Ship</span>
+          </div>
+          <div id="weatherCurrentData" style="text-align:center;font-size:10px;color:var(--text-secondary)"></div>
+        </div>
+      </div>
+      <!-- Zoom Scale Indicator -->
+      <div id="zoomScaleIndicator" style="position:absolute;bottom:50px;right:8px;z-index:500;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;opacity:0.9;pointer-events:none;display:none">
+        <span style="color:var(--text-secondary)">Scale:</span> <span id="zoomScaleText" style="color:var(--accent);font-weight:600">--</span>
+      </div>
+      <div id="chart-map"></div>
+      <div id="chart-legend" style="position:absolute;bottom:50px;left:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:10px;z-index:500;max-width:200px;pointer-events:auto;display:none">
+        <div style="font-weight:600;margin-bottom:4px;color:var(--accent);font-size:11px">Chart Legend</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:12px;height:3px;background:#2a7fff;border-radius:1px"></span> Depth contours</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:8px;height:8px;background:#ffab00;border-radius:50%"></span> Lights</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:8px;height:8px;background:#00e676;border-radius:50%"></span> Buoys/Marks</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="display:inline-block;width:12px;height:3px;background:#ff4444;border-radius:1px"></span> Channels</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><span style="color:#2a7fff;font-weight:bold">12</span> Depth (meters)</div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0"><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="none" stroke="#ff8a65" stroke-width="1.5"/></svg> Ports (click to load)</div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SKYPLOT -->
+    <div class="tab-panel" id="tab-skyplot">
+      <!-- Spoofing Advisory -->
+      <div class="card" style="border-color:var(--warning)">
+        <div class="card-title" style="color:var(--warning)">Anti-Spoofing — Constellation Filter</div>
+        <div class="data-small" style="color:var(--text-secondary);margin-bottom:8px">
+          In Gulf region, GPS signals can be spoofed. Disable suspicious constellations below.
+          If position jumps, try using only GLONASS or BeiDou. Compare with ship's GPS on NAV tab.
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          <button class="btn btn-sm constellation-toggle on" id="toggleGPS" onclick="toggleConstellation('GPS',this)" style="background:#2a7fff33;color:#2a7fff;border-color:#2a7fff55;font-size:10px">● GPS</button>
+          <button class="btn btn-sm constellation-toggle on" id="toggleGLONASS" onclick="toggleConstellation('GLONASS',this)" style="background:#ff444433;color:#ff4444;border-color:#ff444455;font-size:10px">● GLONASS</button>
+          <button class="btn btn-sm constellation-toggle on" id="toggleGalileo" onclick="toggleConstellation('Galileo',this)" style="background:#00e67633;color:#00e676;border-color:#00e67655;font-size:10px">● Galileo</button>
+          <button class="btn btn-sm constellation-toggle on" id="toggleBeiDou" onclick="toggleConstellation('BeiDou',this)" style="background:#ffab0033;color:#ffab00;border-color:#ffab0055;font-size:10px">● BeiDou</button>
+        </div>
+        <div class="data-small" id="spoofingStatus" style="color:var(--accent);font-weight:600"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">GNSS Satellite Visibility</div>
+        <canvas id="skyplot-canvas" width="400" height="400"></canvas>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px">
+          <div style="text-align:center">
+            <div class="data-medium mono" style="color:#2a7fff" id="gpsCount">--</div>
+            <div class="data-label">GPS</div>
+          </div>
+          <div style="text-align:center">
+            <div class="data-medium mono" style="color:#ff4444" id="gloCount">--</div>
+            <div class="data-label">GLONASS</div>
+          </div>
+          <div style="text-align:center">
+            <div class="data-medium mono" style="color:#00e676" id="galCount">--</div>
+            <div class="data-label">Galileo</div>
+          </div>
+          <div style="text-align:center">
+            <div class="data-medium mono" style="color:#ffab00" id="bdsCount">--</div>
+            <div class="data-label">BeiDou</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
+          <div style="text-align:center">
+            <div class="data-medium mono" id="hdopDisplay">--</div>
+            <div class="data-label">HDOP</div>
+          </div>
+          <div style="text-align:center">
+            <div class="data-medium mono" id="vdopDisplay">--</div>
+            <div class="data-label">VDOP</div>
+          </div>
+          <div style="text-align:center">
+            <div class="data-medium mono" id="pdopDisplay">--</div>
+            <div class="data-label">PDOP</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Signal Strength (SNR)</div>
+        <div style="width:100%;overflow-x:auto">
+          <canvas id="snr-canvas" width="400" height="140"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Satellite Signal Environment</div>
+        <div class="data-small" style="color:var(--text-secondary)">
+          Sky plot shows computed satellite positions based on orbital data (TLE).
+          Your phone tracks all visible constellations automatically.<br><br>
+          <b style="color:var(--warning)">Gulf Spoofing Advisory:</b> GPS spoofing is common in the Gulf region.
+          If your position jumps or is incorrect, use the constellation filter above to disable GPS
+          and try GLONASS or BeiDou only. Compare phone position with ship's ECDIS/GPS.
+          Note: Phone hardware may not allow per-constellation filtering — this filter affects the sky plot display
+          and DOP calculation to help identify which constellation may be compromised.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: CELESTIAL -->
+    <div class="tab-panel" id="tab-celestial">
+      <!-- Stars / Sun Toggle -->
+      <div class="card" style="padding:8px 12px">
+        <div style="display:flex;gap:0;margin-bottom:8px">
+          <button class="btn btn-sm celestial-mode-btn active" id="btnModeStars" onclick="setCelestialMode('stars')" style="border-radius:6px 0 0 6px;flex:1">STARS</button>
+          <button class="btn btn-sm celestial-mode-btn" id="btnModeSun" onclick="setCelestialMode('sun')" style="border-radius:0 6px 6px 0;flex:1">SUN</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+          <div>
+            <div class="data-label" style="margin-bottom:4px">Ship Heading °T</div>
+            <input class="input" id="celestialHdg" placeholder="000" type="number" min="0" max="359" style="font-size:14px" oninput="saveSetting('celestialHdg',this.value);renderCelestial()">
+          </div>
+          <div>
+            <div class="data-label" style="margin-bottom:4px">Height of Eye (m)</div>
+            <input class="input" id="heightOfEye" placeholder="15" type="number" min="0" max="100" style="font-size:14px" oninput="saveSetting('heightOfEye',this.value);renderCelestial()">
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="useLiveHeading()">Use Live</button>
+        </div>
+      </div>
+
+      <!-- Sun Details Panel (hidden by default) -->
+      <div class="card" id="sunDetailsPanel" style="display:none">
+        <div class="card-title" style="color:#ffd54f">Sun Data</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><span class="data-label">Altitude</span><div class="data-medium mono" style="color:#ffd54f" id="sunAlt">--</div></div>
+          <div><span class="data-label">Azimuth (True)</span><div class="data-medium mono" style="color:#ffd54f" id="sunAz">--</div></div>
+          <div><span class="data-label">Sunrise (UTC)</span><div class="data-small mono" id="sunRise">--:--</div></div>
+          <div><span class="data-label">Sunset (UTC)</span><div class="data-small mono" id="sunSet">--:--</div></div>
+          <div><span class="data-label">Meridian Pass (LAN)</span><div class="data-small mono" id="sunMeridian">--:--</div></div>
+          <div><span class="data-label">Declination</span><div class="data-small mono" id="sunDec">--</div></div>
+          <div><span class="data-label">GHA</span><div class="data-small mono" id="sunGHA">--</div></div>
+          <div><span class="data-label">Equation of Time</span><div class="data-small mono" id="sunEOT">--</div></div>
+          <div><span class="data-label">Twilight (Civil)</span><div class="data-small mono" id="sunTwilightCivil">--</div></div>
+          <div><span class="data-label">Twilight (Nautical)</span><div class="data-small mono" id="sunTwilightNaut">--</div></div>
+          <div><span class="data-label">Sextant Alt (True)</span><div class="data-medium mono" style="color:#ff8a65" id="sunSextantAlt">--</div></div>
+          <div><span class="data-label">Dip Correction</span><div class="data-small mono" id="sunDip">--</div></div>
+          <div><span class="data-label">Refraction</span><div class="data-small mono" id="sunRefraction">--</div></div>
+          <div><span class="data-label">Semi-Diameter</span><div class="data-small mono" id="sunSD">--</div></div>
+        </div>
+      </div>
+
+      <!-- View toggle: DOME (classic) vs DECK (panoramic) -->
+      <div style="display:flex;gap:0;margin:0 8px 4px 8px">
+        <button class="btn btn-sm" id="btnViewDome" onclick="setStarView('dome')" style="border-radius:6px 0 0 6px;flex:1;font-size:10px;background:var(--accent);color:#000">DOME VIEW</button>
+        <button class="btn btn-sm" id="btnViewDeck" onclick="setStarView('deck')" style="border-radius:0 6px 6px 0;flex:1;font-size:10px">DECK VIEW</button>
+      </div>
+
+      <!-- Classic dome view -->
+      <div id="celestialCanvasWrap" style="position:relative;width:100%;min-height:350px;flex-shrink:0">
+        <canvas id="celestial-canvas" style="display:block;width:100%;min-height:350px"></canvas>
+      </div>
+
+      <!-- Panoramic deck view — "person standing on ship looking at sky" -->
+      <div id="deckViewWrap" style="display:none;position:relative;width:100%;flex-shrink:0;margin:0 0 4px 0">
+        <!-- Direction buttons -->
+        <div style="display:flex;gap:0;margin:0 8px 4px 8px">
+          <button class="btn btn-sm" id="deckLookPort" onclick="setDeckLook('port')" style="border-radius:6px 0 0 6px;flex:1;font-size:10px">PORT</button>
+          <button class="btn btn-sm" id="deckLookAhead" onclick="setDeckLook('ahead')" style="flex:1;font-size:10px;background:var(--accent);color:#000">LOOK AHEAD</button>
+          <button class="btn btn-sm" id="deckLookStbd" onclick="setDeckLook('stbd')" style="flex:1;font-size:10px">STBD</button>
+          <button class="btn btn-sm" id="deckLookAstern" onclick="setDeckLook('astern')" style="border-radius:0 6px 6px 0;flex:1;font-size:10px">ASTERN</button>
+        </div>
+        <canvas id="deck-canvas" style="display:block;width:100%;min-height:400px"></canvas>
+      </div>
+
+      <div class="card" id="celestialInfo" style="flex-shrink:0">
+        <div class="card-title">Visible Bodies</div>
+        <div id="celestialList" style="font-size:11px;max-height:150px;overflow-y:auto"></div>
+      </div>
+
+      <!-- CELESTIAL FIX CALCULATOR — Sight Reduction -->
+      <div class="card" style="border-color:#ffd54f;flex-shrink:0">
+        <div class="card-title" style="color:#ffd54f">Celestial Fix Calculator (GPS-Independent Position)</div>
+        <div class="data-small" style="color:var(--text-secondary);margin-bottom:8px">
+          Take sextant altitude of Sun, Moon, Stars or Planets. Enter observation below.
+          Two or more sights from different bodies → actual position without GPS.
+        </div>
+
+        <!-- Sight Input -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Body</div>
+            <div class="select-wrap"><select id="sightBody" class="input" style="font-size:12px;padding:6px"><option value="Sun">Sun</option></select></div>
+          </div>
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Limb (Sun/Moon)</div>
+            <div class="select-wrap"><select id="sightLimb" class="input" style="font-size:12px;padding:6px"><option value="lower">Lower Limb</option><option value="upper">Upper Limb</option><option value="center">Center</option></select></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Hs Degrees</div>
+            <input class="input mono" id="sightHsDeg" type="number" min="0" max="90" placeholder="35" style="font-size:13px;padding:6px">
+          </div>
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Hs Minutes</div>
+            <input class="input mono" id="sightHsMin" type="number" min="0" max="59.9" step="0.1" placeholder="24.5" style="font-size:13px;padding:6px">
+          </div>
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Index Error (')</div>
+            <input class="input mono" id="sightIE" type="number" step="0.1" value="0" style="font-size:13px;padding:6px">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:8px;align-items:end">
+          <div>
+            <div class="data-label" style="margin-bottom:2px">UTC Hour</div>
+            <input class="input mono" id="sightTimeH" type="number" min="0" max="23" placeholder="12" style="font-size:13px;padding:6px">
+          </div>
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Min</div>
+            <input class="input mono" id="sightTimeM" type="number" min="0" max="59" placeholder="30" style="font-size:13px;padding:6px">
+          </div>
+          <div>
+            <div class="data-label" style="margin-bottom:2px">Sec</div>
+            <input class="input mono" id="sightTimeS" type="number" min="0" max="59" placeholder="0" style="font-size:13px;padding:6px">
+          </div>
+          <button class="btn btn-sm" onclick="fillCurrentTime()" style="font-size:10px;white-space:nowrap">Now</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="btn btn-sm btn-primary" onclick="addSight()" style="flex:1">Add Sight</button>
+          <button class="btn btn-sm btn-danger" onclick="clearAllSights()">Clear All</button>
+        </div>
+        <div class="data-small" id="sightStatus" style="color:var(--text-dim);margin-bottom:8px">Enter sextant observation above</div>
+
+        <!-- Sights List -->
+        <div id="sightsList" style="margin-bottom:8px;max-height:120px;overflow-y:auto">
+          <div style="color:var(--text-dim);font-size:10px">No sights recorded</div>
+        </div>
+
+        <!-- Fix Result -->
+        <div id="fixResult"></div>
+      </div>
+    </div>
+
+    <!-- TAB 5: SHARE -->
+    <div class="tab-panel" id="tab-share">
+      <div class="card">
+        <div class="card-title">Share Position</div>
+        <div class="data-small" style="color:var(--text-secondary);margin-bottom:12px">
+          Send live position from your mobile to any PC browser. Both devices must have internet access.
+          No login or installation required — just type the same URL and enter the code.
+          <br><b style="color:var(--accent)">Code stays same on this device even after refresh.</b>
+          Position streams continuously every 2 seconds. Auto-reconnects if disconnected.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-primary" id="btnSend" onclick="startSending()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+            SEND Position
+          </button>
+          <button class="btn" id="btnReceive" onclick="startReceiving()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            RECEIVE Position
+          </button>
+        </div>
+      </div>
+
+      <div class="card" id="sendPanel" style="display:none">
+        <div class="card-title">Your Share Code</div>
+        <div class="share-code mono" id="shareCode">------</div>
+        <div class="share-status" id="sendStatus">Generating code...</div>
+        <div style="text-align:center;margin-top:8px">
+          <button class="btn btn-danger btn-sm" onclick="stopSharing()">Stop Sharing</button>
+        </div>
+      </div>
+
+      <!-- Connection History -->
+      <div class="card" id="connHistory" style="display:none"></div>
+
+      <div class="card" id="receivePanel" style="display:none">
+        <div class="card-title">Enter 6-Digit Code</div>
+        <div class="code-input-wrap" style="padding:0">
+          <input class="input mono" id="codeInput" maxlength="6" placeholder="000000" style="text-align:center;font-size:28px;letter-spacing:8px">
+          <button class="btn btn-primary" onclick="connectToSender()">Connect</button>
+        </div>
+        <div class="share-status" id="receiveStatus">Enter the code shown on the sender device</div>
+        <div style="text-align:center;margin-top:8px">
+          <button class="btn btn-danger btn-sm" onclick="stopReceiving()">Disconnect</button>
+        </div>
+      </div>
+
+      <div class="card" id="receivedDataPanel" style="display:none">
+        <div class="card-title">Received Position (Live)</div>
+        <div class="pos-grid">
+          <div>
+            <div class="data-medium mono pos-value" id="rxLat">--</div>
+            <div class="data-label">Latitude</div>
+          </div>
+          <div>
+            <div class="data-medium mono pos-value" id="rxLon">--</div>
+            <div class="data-label">Longitude</div>
+          </div>
+          <div>
+            <div class="data-medium mono hdg-value" id="rxHdg">--°</div>
+            <div class="data-label">Heading</div>
+          </div>
+          <div>
+            <div class="data-medium mono spd-value" id="rxSpd">-- kn</div>
+            <div class="data-label">Speed</div>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <span class="data-label">Accuracy: </span><span class="mono data-small" id="rxAcc">--m</span>
+          <span class="data-label" style="margin-left:12px">Var: </span><span class="mono data-small" id="rxVar">--</span>
+          <span class="data-label" style="margin-left:12px">Updated: </span><span class="mono data-small" id="rxTime">--:--:--</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">How It Works</div>
+        <div class="data-small" style="color:var(--text-secondary)">
+          1. On mobile: Open the app → Tap SEND → Note the 6-digit code<br>
+          2. On PC: Open the same URL → Tap RECEIVE → Type the code<br>
+          3. Live GPS data streams continuously (every 2s, P2P encrypted)<br>
+          4. Both devices must be on internet (Starlink/Marlink/4G)<br>
+          5. Code is persistent — same code survives refresh<br>
+          6. Auto-reconnects if connection drops<br>
+          7. All sections (NAV, CHART, SKYPLOT, STARS) update from streamed data
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div id="nav">
+    <button class="nav-btn active" onclick="switchTab('nav',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+      NAV
+    </button>
+    <button class="nav-btn" onclick="switchTab('chart',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+      CHART
+    </button>
+    <button class="nav-btn" onclick="switchTab('skyplot',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
+      SKYPLOT
+    </button>
+    <button class="nav-btn" onclick="switchTab('celestial',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 009 9 9 9 0 11-9-9z"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="16" cy="14" r="1" fill="currentColor"/><circle cx="10" cy="16" r=".7" fill="currentColor"/></svg>
+      STARS
+    </button>
+    <button class="nav-btn" onclick="switchTab('share',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+      SHARE
+    </button>
+  </div>
+</div>
+
+<!-- MOB Flash Overlay -->
+<div id="mobFlash" style="display:none;position:fixed;inset:0;background:rgba(255,0,0,0.4);z-index:999;pointer-events:none"></div>
+<style>#mobFlash.show{display:block!important;animation:mobFlashAnim 0.3s 4}@keyframes mobFlashAnim{0%,100%{opacity:0}50%{opacity:1}}.mob-tooltip{background:#ff0000!important;color:#fff!important;border:none!important;font-weight:700;font-size:12px}.search-result-item{padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px}.search-result-item:hover{background:var(--bg-input)}@keyframes mobBlink{0%,100%{opacity:1}50%{opacity:0.3}}</style>
+
+<!-- Anchor Dragging Alarm Banner -->
+<div class="gps-lost-banner" id="anchorAlarmBanner" style="background:#ff4400">ANCHOR DRAGGING — <span id="anchorAlarmDist"></span></div>
+
+<!-- MOB Floating Button -->
+<button id="mobBtn" onclick="triggerMOB()" style="position:fixed;bottom:calc(60px + env(safe-area-inset-bottom,0px));right:12px;z-index:150;width:52px;height:52px;border-radius:50%;background:#ff0000;color:#fff;font-size:11px;font-weight:900;border:3px solid #fff;box-shadow:0 2px 12px rgba(255,0,0,.5);cursor:pointer;font-family:'IBM Plex Sans',sans-serif;letter-spacing:1px">MOB</button>
+
+<!-- Star Detail Popup -->
+<div id="starDetailPopup">
+  <button class="popup-close" onclick="closeStarPopup()">&times;</button>
+  <div class="popup-title" id="starPopupTitle">--</div>
+  <div id="starPopupContent"></div>
+</div>
+
+<!-- Settings Overlay -->
+<div id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div id="settings-panel">
+    <div class="settings-header">
+      <span style="font-weight:600;font-size:16px">Settings</span>
+      <button class="settings-close" onclick="closeSettings()">&times;</button>
+    </div>
+
+    <div class="card-title">Display</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Night Mode (Red on Black)</span>
+      <div class="toggle" id="toggleNight" onclick="toggleSetting('nightMode',this)"></div>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Keep Screen On</span>
+      <div class="toggle" id="toggleWake" onclick="toggleSetting('wakeLock',this)"></div>
+    </div>
+
+    <div class="card-title" style="margin-top:16px">Position Format</div>
+    <div class="select-wrap">
+      <select id="posFormat" onchange="saveSetting('posFormat',this.value);updateDisplay()">
+        <option value="dm">DD° MM.MMM' (Maritime Standard)</option>
+        <option value="dms">DD° MM' SS.S"</option>
+        <option value="dd">DD.DDDDD° (Decimal)</option>
+      </select>
+    </div>
+
+    <div class="card-title" style="margin-top:16px">Accuracy Warning Threshold</div>
+    <div class="select-wrap">
+      <select id="accThreshold" onchange="saveSetting('accThreshold',this.value)">
+        <option value="30">30m (Strict)</option>
+        <option value="50">50m (Standard)</option>
+        <option value="100">100m (Relaxed)</option>
+        <option value="500">500m (Very Relaxed)</option>
+      </select>
+    </div>
+
+    <div class="card-title" style="margin-top:16px">Chart Layers</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Sea Marks (Buoys, Lights, etc.)</span>
+      <div class="toggle on" id="toggleSeamarks" onclick="toggleSetting('seamarks',this);updateChartLayers()"></div>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Depth / Bathymetry (GEBCO)</span>
+      <div class="toggle on" id="toggleDepth" onclick="toggleSetting('depthLayer',this);updateChartLayers()"></div>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Show Track Trail</span>
+      <div class="toggle on" id="toggleTrack" onclick="toggleSetting('trackTrail',this)"></div>
+    </div>
+
+    <div class="card-title" style="margin-top:16px">About</div>
+    <div class="data-small" style="color:var(--text-secondary)">
+      eMarinersApp NaviGPS Pro v1.0 — Maritime Position System<br>
+      For supplementary navigation use only.<br>
+      Does NOT replace official ECDIS or paper charts.<br>
+      WMM2025 valid: 2025.0 – 2030.0<br>
+      Domain: gps.nodesurge.tech
+    </div>
+  </div>
+</div>
+
+<!-- External Libraries -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/astronomy.browser.min.js"></script>
+
+<!-- App Modules (order matters: state first, app last) -->
+<script src="js/state.js"></script>
+<script src="js/wakelock.js"></script>
+<script src="js/variation.js"></script>
+<script src="js/display.js"></script>
+<script src="js/compass.js"></script>
+<script src="js/gps.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/skyplot.js"></script>
+<script src="js/celestial.js"></script>
+<script src="js/share.js"></script>
+<script src="js/compare.js"></script>
+<script src="js/manual.js"></script>
+<script src="js/mob.js"></script>
+<script src="js/anchor.js"></script>
+<script src="js/bearing.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/deadreckoning.js"></script>
+<script src="js/celestialfix.js"></script>
+<script src="js/ipgeo.js"></script>
+<script src="js/native-bridge.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
