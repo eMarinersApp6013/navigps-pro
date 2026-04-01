@@ -1,0 +1,64 @@
+/* ============================================================
+   THEMES — CSS Custom Properties
+   ============================================================ */
+:root {
+  /* Day Mode */
+  --bg-primary: #0a0e14;
+  --bg-secondary: #111822;
+  --bg-card: #161d28;
+  --bg-input: #1a2332;
+  --border: #1e2a3a;
+  --border-active: #2a7fff;
+  --text-primary: #e8edf3;
+  --text-secondary: #7a8ba0;
+  --text-dim: #4a5a6a;
+  --accent: #00e676;
+  --accent-dim: #00e67633;
+  --warning: #ffab00;
+  --danger: #ff3d3d;
+  --info: #2a7fff;
+  --compass-rose: #00e676;
+  --heading-color: #00e676;
+  --speed-color: #2a7fff;
+  --position-color: #e8edf3;
+  --grid-color: #1e2a3a;
+  --horizon-color: #ffab00;
+  --star-color: #ffe082;
+  --planet-color: #ff8a65;
+  --sun-color: #ffd54f;
+  --moon-color: #e0e0e0;
+  --nav-bg: #0d1219;
+  --tab-active: #00e676;
+  --tab-inactive: #4a5a6a;
+  --shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+[data-theme="night"] {
+  --bg-primary: #0a0000;
+  --bg-secondary: #120000;
+  --bg-card: #1a0000;
+  --bg-input: #200000;
+  --border: #300000;
+  --border-active: #ff2222;
+  --text-primary: #ff4444;
+  --text-secondary: #882222;
+  --text-dim: #551111;
+  --accent: #ff2222;
+  --accent-dim: #ff222233;
+  --warning: #ff4400;
+  --danger: #ff0000;
+  --info: #ff3333;
+  --compass-rose: #ff2222;
+  --heading-color: #ff2222;
+  --speed-color: #ff4444;
+  --position-color: #ff4444;
+  --grid-color: #2a0000;
+  --horizon-color: #ff4400;
+  --star-color: #ff6644;
+  --planet-color: #ff4422;
+  --sun-color: #ff6600;
+  --moon-color: #ff4444;
+  --nav-bg: #080000;
+  --tab-active: #ff2222;
+  --tab-inactive: #551111;
+}
