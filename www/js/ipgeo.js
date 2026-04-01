@@ -5,6 +5,11 @@
    but confirms you're in the right area (not spoofed to another country).
    ============================================================ */
 
+function toggleIPGeoPopup() {
+  var el = document.getElementById('ipGeoPopup');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 var IP_GEO = {
   lat: null,
   lon: null,

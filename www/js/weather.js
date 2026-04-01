@@ -39,8 +39,8 @@ function fetchWeather() {
   });
 }
 
-// Default collapsed on mobile (screen width < 768px)
-var weatherExpanded = window.innerWidth >= 768;
+// Default: compass always visible, data rows below
+var weatherExpanded = true;
 function toggleWeatherExpand() {
   weatherExpanded = !weatherExpanded;
   var el = document.getElementById('weatherExpanded');
@@ -59,25 +59,35 @@ function displayWeather() {
   var compactEl = document.getElementById('weatherCompact');
   var html = '';
 
+  // Wind row
   if (w && w.current) {
     var c = w.current;
     var windDir = c.wind_direction_10m || 0;
     var windSpd = c.wind_speed_10m || 0;
     var gusts = c.wind_gusts_10m || 0;
-    var windArrow = getWindArrow(windDir);
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">' +
-      '<div style="text-align:center"><div class="data-medium mono spd-value">' + windSpd.toFixed(0) + '</div><div class="data-label">Wind kn</div></div>' +
-      '<div style="text-align:center"><div class="data-medium mono">' + windArrow + ' ' + windDir + '\u00B0</div><div class="data-label">Direction</div></div>' +
-      '<div style="text-align:center"><div class="data-medium mono" style="color:var(--warning)">' + gusts.toFixed(0) + '</div><div class="data-label">Gusts kn</div></div>' +
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="width:50px;font-size:9px;color:#4fc3f7;font-weight:600;text-transform:uppercase">Wind</span>' +
+      '<span class="mono" style="font-size:14px;color:#4fc3f7;font-weight:700;min-width:40px">' + windSpd.toFixed(0) + '<span style="font-size:9px"> kn</span></span>' +
+      '<span class="mono" style="font-size:11px;color:var(--text-secondary)">' + windDir + '\u00B0</span>' +
+      '<span style="font-size:9px;color:var(--text-dim)">Gust</span>' +
+      '<span class="mono" style="font-size:12px;color:var(--warning);font-weight:600">' + gusts.toFixed(0) + '</span>' +
       '</div>';
   }
 
+  // Wave & Swell row
   if (m && m.current) {
     var mc = m.current;
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' +
-      '<div style="text-align:center"><div class="data-medium mono" style="color:var(--info)">' + (mc.wave_height || '--') + '</div><div class="data-label">Wave H (m)</div></div>' +
-      '<div style="text-align:center"><div class="data-medium mono">' + (mc.wave_period || '--') + '</div><div class="data-label">Period (s)</div></div>' +
-      '<div style="text-align:center"><div class="data-medium mono">' + (mc.swell_wave_height || '--') + '</div><div class="data-label">Swell (m)</div></div>' +
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="width:50px;font-size:9px;color:#2a7fff;font-weight:600;text-transform:uppercase">Waves</span>' +
+      '<span class="mono" style="font-size:14px;color:#2a7fff;font-weight:700;min-width:40px">' + (mc.wave_height || '--') + '<span style="font-size:9px">m</span></span>' +
+      '<span style="font-size:9px;color:var(--text-dim)">T</span>' +
+      '<span class="mono" style="font-size:11px;color:var(--text-secondary)">' + (mc.wave_period || '--') + 's</span>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px;padding:4px 0">' +
+      '<span style="width:50px;font-size:9px;color:#7e57c2;font-weight:600;text-transform:uppercase">Swell</span>' +
+      '<span class="mono" style="font-size:14px;color:#7e57c2;font-weight:700;min-width:40px">' + (mc.swell_wave_height || '--') + '<span style="font-size:9px">m</span></span>' +
+      '<span style="font-size:9px;color:var(--text-dim)">Dir</span>' +
+      '<span class="mono" style="font-size:11px;color:var(--text-secondary)">' + (mc.swell_wave_direction != null ? mc.swell_wave_direction + '\u00B0' : '--') + '</span>' +
       '</div>';
   }
 
@@ -86,13 +96,12 @@ function displayWeather() {
   if (compactEl) compactEl.innerHTML = html;
   panel.style.display = 'block';
 
-  // Respect collapsed state (default collapsed on mobile)
+  // Show expanded compass by default
   var expandedEl = document.getElementById('weatherExpanded');
   var expandIcon = document.getElementById('weatherExpandIcon');
   if (expandedEl) expandedEl.style.display = weatherExpanded ? 'block' : 'none';
   if (expandIcon) expandIcon.textContent = weatherExpanded ? '\u25B2' : '\u25BC';
 
-  // Always update compass
   if (weatherExpanded) updateWeatherCompass();
 }
 

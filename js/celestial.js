@@ -384,7 +384,42 @@ function renderCelestial() {
     } catch(e) {}
   });
 
-  document.getElementById('celestialList').innerHTML = listHtml.join('<br>');
+  // Sort all visible bodies alphabetically by name
+  var allVisible = [];
+  celestialBodies.forEach(function(b) {
+    if (b.alt > 5) {
+      var relBrg = ((b.az - shipHdg + 360) % 360);
+      var side = relBrg <= 180 ? (relBrg < 10 ? 'AHEAD' : 'STBD') : (relBrg > 350 ? 'AHEAD' : 'PORT');
+      var color = typeColors[b.type] || typeColors.star;
+      var symbol = b.type === 'star' ? '\u2605' : '\u25CF';
+      var mag = typeof b.magnitude === 'number' ? b.magnitude : 2;
+      allVisible.push({
+        name: b.name, type: b.type, alt: b.alt, az: b.az, side: side, color: color, symbol: symbol, magnitude: mag
+      });
+    }
+  });
+
+  allVisible.sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+  var sortedHtml = allVisible.map(function(v) {
+    return '<span style="color:' + v.color + '">' + v.symbol + ' ' + v.name + '</span> Alt:' + v.alt.toFixed(1) + '\u00B0 Brg:' + v.az.toFixed(1) + '\u00B0T ' + v.side;
+  });
+
+  // Top 5 by visibility: sort by (altitude * (6 - magnitude)) descending
+  var top5 = allVisible.slice().sort(function(a, b) {
+    return (b.alt * (6 - b.magnitude)) - (a.alt * (6 - a.magnitude));
+  }).slice(0, 5);
+
+  var top5Html = '';
+  if (top5.length > 0) {
+    top5Html = '<hr style="border-color:#555;margin:6px 0">' +
+      '<div style="font-weight:600;color:#ffd54f;font-size:10px;letter-spacing:1px;margin-bottom:4px">TOP 5 BY VISIBILITY</div>';
+    top5Html += top5.map(function(v) {
+      return '<span style="color:#ffd54f;font-weight:600">' + v.symbol + ' ' + v.name + '</span> Alt:' + v.alt.toFixed(1) + '\u00B0 Brg:' + v.az.toFixed(1) + '\u00B0T ' + v.side;
+    }).join('<br>');
+  }
+
+  document.getElementById('celestialList').innerHTML = sortedHtml.join('<br>') + top5Html;
 }
 
 function initCelestialClick() {
@@ -469,7 +504,7 @@ function useLiveHeading() {
    Person looking at sky from ship deck, PORT/STBD/HEAD/ASTERN
    Designed so even a kid can understand where to look
    ============================================================ */
-var currentStarView = 'dome';  // 'dome' or 'deck'
+var currentStarView = 'deck';  // 'dome' or 'deck'
 var deckLookDir = 'ahead';     // 'ahead', 'port', 'stbd', 'astern'
 
 function setStarView(view) {

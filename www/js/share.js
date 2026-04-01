@@ -243,7 +243,13 @@ function connectToPeer(peerId, code) {
   var conn = STATE.peer.connect(peerId, { reliable: true });
   STATE.conn = conn;
 
+  // Connection timeout — 10 seconds
+  var connectTimeout = setTimeout(function() {
+    document.getElementById('receiveStatus').innerHTML = '<span style="color:var(--warning)">Connection timeout. Troubleshooting:<br>1. Ensure mobile app has Send active<br>2. Both devices need internet<br>3. Try refreshing both devices<br>4. Check if code matches exactly</span>';
+  }, 10000);
+
   conn.on('open', function() {
+    clearTimeout(connectTimeout);
     document.getElementById('receiveStatus').textContent = 'Connected — Receiving live data';
     document.getElementById('receiveStatus').style.color = 'var(--accent)';
     document.getElementById('receivedDataPanel').style.display = 'block';
