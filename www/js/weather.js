@@ -4,6 +4,13 @@
    ============================================================ */
 function fetchWeather() {
   if (STATE.lat == null) return;
+  // Show panel immediately with loading state
+  var panel = document.getElementById('weatherPanel');
+  if (panel && panel.style.display === 'none') {
+    panel.style.display = 'block';
+    var compact = document.getElementById('weatherCompact');
+    if (compact && !compact.innerHTML) compact.innerHTML = '<div class="data-small" style="color:var(--text-dim)">Loading weather data...</div>';
+  }
   var now = Date.now();
   if (now - STATE.weatherLastFetch < 1800000 && STATE.weatherData) return; // 30min cache
 
@@ -181,3 +188,11 @@ function getWindArrow(deg) {
   var arrows = ['\u2193','\u2199','\u2190','\u2196','\u2191','\u2197','\u2192','\u2198'];
   return arrows[Math.round(deg / 45) % 8];
 }
+
+// Auto-fetch weather when position is first available
+var _weatherCheckInterval = setInterval(function() {
+  if (STATE.lat != null) {
+    clearInterval(_weatherCheckInterval);
+    fetchWeather();
+  }
+}, 3000);

@@ -1,4 +1,20 @@
 /* ============================================================
+   BACK BUTTON / BROWSER BACK — confirm before closing
+   ============================================================ */
+// Back button / browser back — confirm before closing
+window.addEventListener('popstate', function(e) {
+  // Push state again to prevent actual navigation
+  history.pushState(null, '', location.href);
+  if (confirm('Do you want to close SeaGPS Pro?')) {
+    window.close();
+    // If window.close doesn't work (most browsers block it), navigate away
+    history.back();
+  }
+});
+// Push initial state so popstate fires on back
+history.pushState(null, '', location.href);
+
+/* ============================================================
    MANUAL REFRESH BUTTON — works for both GPS and Remote mode
    ============================================================ */
 function manualRefresh() {
@@ -162,3 +178,16 @@ window.addEventListener('load', function() {
     document.removeEventListener('click', firstInteraction);
   }, { once: true });
 });
+
+// Android hardware back button handling (Capacitor)
+if (typeof App !== 'undefined' && App.addListener) {
+  App.addListener('backButton', function(data) {
+    if (data.canGoBack) {
+      window.history.back();
+    } else {
+      if (confirm('Do you want to close SeaGPS Pro?')) {
+        if (typeof App.exitApp === 'function') App.exitApp();
+      }
+    }
+  });
+}
