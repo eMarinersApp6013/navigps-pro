@@ -165,8 +165,8 @@
     <div style="border-bottom:1px solid #1a2a40;margin:4px 0"></div>
     <!-- CENTER: Large LAT/LON -->
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px">
-      <div style="font-size:clamp(36px,10vw,72px);font-weight:700;color:#00e676;letter-spacing:2px;line-height:1.2" id="atseaLat">--°--.---'N</div>
-      <div style="font-size:clamp(36px,10vw,72px);font-weight:700;color:#00e676;letter-spacing:2px;line-height:1.2" id="atseaLon">---°--.---'E</div>
+      <div style="font-size:clamp(48px,14vw,96px);font-weight:700;color:#00e676;letter-spacing:2px;line-height:1.2" id="atseaLat">--°--.---'N</div>
+      <div style="font-size:clamp(48px,14vw,96px);font-weight:700;color:#00e676;letter-spacing:2px;line-height:1.2" id="atseaLon">---°--.---'E</div>
     </div>
     <!-- SEPARATOR -->
     <div style="border-bottom:1px solid #1a2a40;margin:4px 0"></div>
@@ -174,7 +174,7 @@
     <div style="display:flex;justify-content:space-around;align-items:center;padding:8px;flex-shrink:0">
       <div style="text-align:center">
         <div style="font-size:10px;color:#6a7a95;letter-spacing:1px">SOG</div>
-        <div style="font-size:clamp(24px,6vw,42px);font-weight:700;color:#fff" id="atseaSOG">--.-</div>
+        <div style="font-size:clamp(28px,8vw,54px);font-weight:700;color:#fff" id="atseaSOG">--.-</div>
         <div style="font-size:10px;color:#6a7a95">KN</div>
       </div>
       <div style="text-align:center">
@@ -185,7 +185,7 @@
       </div>
       <div style="text-align:center">
         <div style="font-size:10px;color:#6a7a95;letter-spacing:1px">COG</div>
-        <div style="font-size:clamp(24px,6vw,42px);font-weight:700;color:#fff" id="atseaCOG">---.-</div>
+        <div style="font-size:clamp(28px,8vw,54px);font-weight:700;color:#fff" id="atseaCOG">---.-</div>
         <div style="font-size:10px;color:#6a7a95">°T</div>
       </div>
     </div>
@@ -523,7 +523,7 @@
       </div>
 
       <!-- Weather Panel with Visual Compass -->
-      <div class="card" id="weatherPanel" style="display:none;position:absolute;bottom:60px;right:8px;z-index:500;max-width:220px;padding:8px 10px;font-size:11px;opacity:0.95">
+      <div class="card" id="weatherPanel" style="display:none;position:absolute;bottom:8px;left:8px;z-index:500;max-width:200px;padding:6px 8px;font-size:10px;opacity:0.9;border-radius:6px">
         <div class="card-title" style="cursor:pointer" onclick="toggleWeatherExpand()">Weather <span id="weatherExpandIcon" style="font-size:8px">&#9660;</span></div>
         <div id="weatherCompact"></div>
         <div id="weatherExpanded" style="display:none">
