@@ -40,7 +40,7 @@ function fetchWeather() {
 }
 
 // Default: compass always visible, data rows below
-var weatherExpanded = true;
+var weatherExpanded = false;
 function toggleWeatherExpand() {
   weatherExpanded = !weatherExpanded;
   var el = document.getElementById('weatherExpanded');

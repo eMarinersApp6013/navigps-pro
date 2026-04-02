@@ -55,8 +55,8 @@ async function requestWakeLock() {
     }
   } catch(e) { /* Wake Lock API failed */ }
 
-  // Fallback: NoSleep video
-  startNoSleep();
+  // Fallback: NoSleep video (only if Wake Lock API not available)
+  if (!apiSuccess) startNoSleep();
 
   STATE.wakeLockActive = true;
   updateWakeLockIndicator(apiSuccess || (STATE.noSleepVideo && !STATE.noSleepVideo.paused));
@@ -68,6 +68,10 @@ function releaseAllWakeLocks() {
     STATE.wakeLockSentinel = null;
   }
   stopNoSleep();
+  if (STATE.noSleepVideo) {
+    STATE.noSleepVideo.pause();
+    STATE.noSleepVideo.src = '';
+  }
   STATE.wakeLockActive = false;
   updateWakeLockIndicator(false);
 }

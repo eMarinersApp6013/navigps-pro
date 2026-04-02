@@ -1,4 +1,4 @@
-# NaviGPS Pro — Mobile App Build Guide
+# SeaGPS Pro — Mobile App Build Guide
 
 ## Prerequisites
 
@@ -68,9 +68,9 @@ cp ios-plugin/Sources/GnssEnginePlugin.m ios/App/App/
 Add to `ios/App/App/Info.plist`:
 ```xml
 <key>NSLocationWhenInUseUsageDescription</key>
-<string>NaviGPS Pro needs your location for maritime navigation.</string>
+<string>SeaGPS Pro needs your location for maritime navigation.</string>
 <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>NaviGPS Pro needs background location to track your vessel position during navigation watch.</string>
+<string>SeaGPS Pro needs background location to track your vessel position during navigation watch.</string>
 <key>UIBackgroundModes</key>
 <array>
     <string>location</string>

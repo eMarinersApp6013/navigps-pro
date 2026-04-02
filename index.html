@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0e14">
-<title>eMarinersApp NaviGPS Pro — Maritime Position System</title>
+<title>eMarinersApp SeaGPS Pro — Maritime Position System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -15,6 +15,20 @@
 </head>
 <body>
 <div id="app">
+<!-- Location Off Popup -->
+<div id="locationOffPopup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:2000;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--bg-card,#1a1a2e);border:2px solid var(--warning,#ff8a00);border-radius:12px;padding:24px;max-width:320px;text-align:center;margin:20px">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ff8a00" stroke-width="2" style="margin-bottom:12px"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/><line x1="2" y1="2" x2="22" y2="22" stroke="#ff4444" stroke-width="2.5"/></svg>
+    <div style="font-size:16px;font-weight:700;color:#ff8a00;margin-bottom:8px">Location Services Off</div>
+    <div style="font-size:13px;color:var(--text-secondary,#8a9ab5);margin-bottom:16px">Please enable Location/GPS on your device to use SeaGPS Pro navigation features.</div>
+    <div style="font-size:11px;color:var(--text-dim,#5a7a9a);margin-bottom:16px">
+      <b>Android:</b> Settings → Location → Turn On<br>
+      <b>iPhone:</b> Settings → Privacy → Location Services → On
+    </div>
+    <button onclick="document.getElementById('locationOffPopup').style.display='none';startGeolocation()" style="background:#ff8a00;color:#000;border:none;border-radius:6px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">I've Turned It On — Retry</button>
+  </div>
+</div>
+
   <!-- GPS LOST Flashing Banner -->
   <div class="gps-lost-banner" id="gpsLostBanner">GPS LOST</div>
 
@@ -26,7 +40,7 @@
 
   <!-- Header -->
   <div id="header">
-    <div class="logo">eMarinersApp NaviGPS Pro</div>
+    <div class="logo">eMarinersApp SeaGPS Pro</div>
     <div class="status-bar">
       <span class="manual-badge" id="manualBadge">MANUAL</span>
       <span class="manual-badge" id="remoteBadge" style="background:var(--info)">REMOTE <span id="remoteCodeLabel"></span></span>
@@ -132,45 +146,51 @@
   <button class="btn btn-sm" id="btnViewAtSea" onclick="setNavView('atsea')" style="border-radius:0 6px 6px 0;flex:1;font-size:10px">AT SEA</button>
 </div>
 
-      <!-- AT SEA DGPS VIEW -->
-      <div id="navAtSeaView" style="display:none">
-        <div class="atsea-container">
-          <!-- Top strip: Time | Accuracy | Constellation -->
-          <div class="atsea-top">
-            <span class="atsea-cell" id="atseaTime" onclick="toggleAtSeaClock()" style="cursor:pointer">--:--:-- LT</span>
-            <span class="atsea-cell" id="atseaAcc">ACC --.- m</span>
-            <span class="atsea-cell" id="atseaConstellation">---</span>
-          </div>
-
-          <!-- Center: Large LAT/LON -->
-          <div class="atsea-center">
-            <div class="atsea-label">LATITUDE</div>
-            <div class="atsea-pos" id="atseaLat">--&deg;--.---'N</div>
-            <div class="atsea-label" style="margin-top:8px">LONGITUDE</div>
-            <div class="atsea-pos" id="atseaLon">---&deg;--.---'E</div>
-          </div>
-
-          <!-- Bottom strip: SOG | VAR + HDOP | COG -->
-          <div class="atsea-bottom">
-            <div class="atsea-bottom-cell">
-              <div class="atsea-label">SOG</div>
-              <div class="atsea-val" id="atseaSOG">--.--</div>
-              <div class="atsea-label">KN</div>
-            </div>
-            <div class="atsea-bottom-cell">
-              <div class="atsea-label">VAR</div>
-              <div class="atsea-val" id="atseaVAR">--.--</div>
-              <div class="atsea-label">HDOP</div>
-              <div class="atsea-val" id="atseaHDOP">--</div>
-            </div>
-            <div class="atsea-bottom-cell">
-              <div class="atsea-label">COG</div>
-              <div class="atsea-val" id="atseaCOG">---.-</div>
-              <div class="atsea-label">&deg;T</div>
-            </div>
-          </div>
-        </div>
+      <!-- AT SEA DGPS VIEW (Furuno GP-33 Style Full Screen) -->
+<div id="navAtSeaView" style="display:none;position:fixed;inset:0;z-index:1500;background:#0a0e14">
+  <div style="display:flex;flex-direction:column;height:100%;font-family:'JetBrains Mono',monospace;padding:8px;box-sizing:border-box">
+    <!-- TOP BAR: Back button + Date/Time -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;flex-shrink:0">
+      <button onclick="setNavView('detail')" style="background:none;border:1px solid #334;color:#8a9ab5;padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit">← DETAIL</button>
+      <div style="display:flex;gap:16px;align-items:center">
+        <span style="color:#6a7a95;font-size:13px" id="atseaDate">--</span>
+        <span style="color:#00e676;font-size:15px;font-weight:700;cursor:pointer" id="atseaTime" onclick="toggleAtSeaClock()">--:--:-- LT</span>
       </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <span style="color:#6a7a95;font-size:11px" id="atseaAcc">ACC --m</span>
+        <span style="color:#4fc3f7;font-size:11px;font-weight:600" id="atseaConstellation">FUSED</span>
+      </div>
+    </div>
+    <!-- SEPARATOR -->
+    <div style="border-bottom:1px solid #1a2a40;margin:4px 0"></div>
+    <!-- CENTER: Large LAT/LON -->
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px">
+      <div style="font-size:clamp(36px,10vw,72px);font-weight:700;color:#00e676;letter-spacing:2px;line-height:1.2" id="atseaLat">--°--.---'N</div>
+      <div style="font-size:clamp(36px,10vw,72px);font-weight:700;color:#00e676;letter-spacing:2px;line-height:1.2" id="atseaLon">---°--.---'E</div>
+    </div>
+    <!-- SEPARATOR -->
+    <div style="border-bottom:1px solid #1a2a40;margin:4px 0"></div>
+    <!-- BOTTOM BAR: SOG + VAR/HDOP + COG -->
+    <div style="display:flex;justify-content:space-around;align-items:center;padding:8px;flex-shrink:0">
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#6a7a95;letter-spacing:1px">SOG</div>
+        <div style="font-size:clamp(24px,6vw,42px);font-weight:700;color:#fff" id="atseaSOG">--.-</div>
+        <div style="font-size:10px;color:#6a7a95">KN</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#6a7a95;letter-spacing:1px">VAR</div>
+        <div style="font-size:16px;font-weight:600;color:#ff8a00" id="atseaVAR">--</div>
+        <div style="font-size:10px;color:#6a7a95;margin-top:4px">HDOP</div>
+        <div style="font-size:14px;color:#8a9ab5" id="atseaHDOP">--</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#6a7a95;letter-spacing:1px">COG</div>
+        <div style="font-size:clamp(24px,6vw,42px);font-weight:700;color:#fff" id="atseaCOG">---.-</div>
+        <div style="font-size:10px;color:#6a7a95">°T</div>
+      </div>
+    </div>
+  </div>
+</div>
 
       <div id="navDetailView">
       <!-- GNSS CONSTELLATION CONTROL PANEL (native app only) -->
@@ -503,7 +523,7 @@
       </div>
 
       <!-- Weather Panel with Visual Compass -->
-      <div class="card" id="weatherPanel" style="display:none;position:absolute;bottom:60px;right:8px;z-index:500;max-width:320px;padding:8px 10px;font-size:11px;opacity:0.95">
+      <div class="card" id="weatherPanel" style="display:none;position:absolute;bottom:60px;right:8px;z-index:500;max-width:220px;padding:8px 10px;font-size:11px;opacity:0.95">
         <div class="card-title" style="cursor:pointer" onclick="toggleWeatherExpand()">Weather <span id="weatherExpandIcon" style="font-size:8px">&#9660;</span></div>
         <div id="weatherCompact"></div>
         <div id="weatherExpanded" style="display:none">
@@ -639,7 +659,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
           <div>
             <div class="data-label" style="margin-bottom:4px">Ship Heading °T</div>
-            <input class="input" id="celestialHdg" placeholder="000" type="number" min="0" max="359" style="font-size:14px" oninput="saveSetting('celestialHdg',this.value);renderCelestial()">
+            <input class="input" id="celestialHdg" placeholder="000" type="number" min="0" max="359" style="font-size:14px" oninput="celestialHdgManual=true;saveSetting('celestialHdg',this.value);renderCelestial()">
           </div>
           <div>
             <div class="data-label" style="margin-bottom:4px">Height of Eye (m)</div>
@@ -836,15 +856,13 @@
       </div>
 
       <div class="card">
-        <div class="card-title">How It Works</div>
-        <div class="data-small" style="color:var(--text-secondary)">
-          1. On mobile: Open the app → Tap SEND → Note the 6-digit code<br>
-          2. On PC: Open the same URL → Tap RECEIVE → Type the code<br>
-          3. Live GPS data streams continuously (every 2s, P2P encrypted)<br>
-          4. Both devices must be on internet (Starlink/Marlink/4G)<br>
-          5. Code is persistent — same code survives refresh<br>
-          6. Auto-reconnects if connection drops<br>
-          7. All sections (NAV, CHART, SKYPLOT, STARS) update from streamed data
+        <div class="card-title">How to Share Position</div>
+        <div class="data-small" style="color:var(--text-secondary);line-height:1.8">
+          <b style="color:var(--accent)">1.</b> On mobile phone: tap <b>SEND</b> → note the 6-digit code<br>
+          <b style="color:var(--accent)">2.</b> On PC: visit <b style="color:#4fc3f7">https://marinersapp.com/gps</b> → go to <b>SHARE</b> tab<br>
+          <b style="color:var(--accent)">3.</b> Tap <b>RECEIVE</b> → enter the 6-digit code<br>
+          <br>
+          <span style="color:var(--text-dim)">Position streams live every 2 seconds. Works between phones too.</span>
         </div>
       </div>
     </div>
@@ -945,11 +963,11 @@
 
     <div class="card-title" style="margin-top:16px">About</div>
     <div class="data-small" style="color:var(--text-secondary)">
-      eMarinersApp NaviGPS Pro v1.0 — Maritime Position System<br>
+      eMarinersApp SeaGPS Pro v1.0 — Maritime Position System<br>
       For supplementary navigation use only.<br>
       Does NOT replace official ECDIS or paper charts.<br>
       WMM2025 valid: 2025.0 – 2030.0<br>
-      Domain: gps.nodesurge.tech
+      Domain: marinersapp.com/gps
     </div>
   </div>
 </div>

@@ -1,7 +1,7 @@
 {
   "name": "navigps-pro",
   "version": "1.0.0",
-  "description": "eMarinersApp NaviGPS Pro — Maritime Navigation with Multi-Constellation GNSS",
+  "description": "eMarinersApp SeaGPS Pro — Maritime Navigation with Multi-Constellation GNSS",
   "main": "index.html",
   "scripts": {
     "test": "node --test tests/unit/*.test.js",
@@ -14,7 +14,7 @@
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
-    "pretest": "echo 'Running NaviGPS Pro test suite...'"
+    "pretest": "echo 'Running SeaGPS Pro test suite...'"
   },
   "author": "eMarinersApp",
   "license": "UNLICENSED",

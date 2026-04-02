@@ -98,7 +98,7 @@ function updateDisplay() {
   // Constellation source
   var srcEl = document.getElementById('navSourceDisplay');
   if (srcEl) {
-    var src = STATE.gnssConstellation || 'MULTI';
+    var src = STATE.primaryConstellation || STATE.gnssConstellation || 'FUSED';
     srcEl.textContent = src;
     srcEl.style.color = src === 'GPS' ? '#4CAF50' : src === 'GLONASS' ? '#2196F3' : src === 'GALILEO' ? '#FF9800' : src === 'BEIDOU' ? '#f44336' : 'var(--info)';
   }
@@ -134,6 +134,10 @@ function setNavView(view) {
     btnDetail.style.color = 'var(--text-primary)';
     btnAtSea.style.background = 'var(--accent)';
     btnAtSea.style.color = '#000';
+    // Request landscape orientation for full-screen AT SEA view
+    try { screen.orientation.lock('landscape').catch(function(){}); } catch(e) {}
+    // Auto-enable wake lock
+    requestWakeLock();
     updateAtSeaDisplay();
   } else {
     detail.style.display = '';
@@ -142,6 +146,8 @@ function setNavView(view) {
     btnDetail.style.color = '#000';
     btnAtSea.style.background = 'var(--bg-input)';
     btnAtSea.style.color = 'var(--text-primary)';
+    // Unlock orientation when leaving AT SEA view
+    try { screen.orientation.unlock(); } catch(e) {}
   }
 }
 
@@ -181,12 +187,20 @@ function updateAtSeaDisplay() {
   }
   document.getElementById('atseaTime').textContent = timeStr;
 
+  // Date (DD-MMM-YY format)
+  var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  var dd = atSeaUseUTC ? now.getUTCDate() : now.getDate();
+  var mm = atSeaUseUTC ? now.getUTCMonth() : now.getMonth();
+  var yy = (atSeaUseUTC ? now.getUTCFullYear() : now.getFullYear()) % 100;
+  var dateEl = document.getElementById('atseaDate');
+  if (dateEl) dateEl.textContent = dd.toString().padStart(2,'0') + '-' + months[mm] + '-' + yy.toString().padStart(2,'0');
+
   // Accuracy
   var acc = STATE.accuracy;
   document.getElementById('atseaAcc').textContent = acc != null ? 'ACC ' + acc.toFixed(1) + ' m' : 'ACC --.- m';
 
   // Constellation
-  var cst = STATE.primaryConstellation || STATE.gnssConstellation || 'GPS';
+  var cst = STATE.primaryConstellation || STATE.gnssConstellation || 'FUSED';
   document.getElementById('atseaConstellation').textContent = cst;
 
   // SOG

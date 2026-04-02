@@ -26,6 +26,18 @@ function startGeolocation() {
   // Start GPS age counter (ticks every second)
   STATE.gpsAgeTimer = setInterval(updateGpsAge, 1000);
 
+  // Proactive location check — show popup if location is off
+  navigator.geolocation.getCurrentPosition(
+    function() { /* Location OK — popup stays hidden */ },
+    function(err) {
+      if (err.code === 1 || err.code === 2) {
+        var popup = document.getElementById('locationOffPopup');
+        if (popup) popup.style.display = 'flex';
+      }
+    },
+    { timeout: 5000, maximumAge: 0 }
+  );
+
   // Start watchdog
   resetGpsWatchdog();
 }

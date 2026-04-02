@@ -1,5 +1,5 @@
-# NaviGPS Pro — Deployment Guide
-## gps.nodesurge.tech via GitHub + Hostinger
+# SeaGPS Pro — Deployment Guide
+## marinersapp.com/gps via GitHub + Hostinger
 
 ---
 
@@ -33,7 +33,7 @@ cd navigps-pro
 
 # Push to GitHub
 git add .
-git commit -m "Initial NaviGPS Pro deployment"
+git commit -m "Initial SeaGPS Pro deployment"
 git push origin main
 ```
 
@@ -96,7 +96,7 @@ TTL:   3600
 
 ### 4c. Configure Custom Domain in GitHub
 1. Go back to your repo **Settings** → **Pages**
-2. Under **Custom domain**, type: `gps.nodesurge.tech`
+2. Under **Custom domain**, type: `marinersapp.com/gps`
 3. Click **Save**
 4. Check **Enforce HTTPS** (wait for DNS to propagate, may take 5-30 min)
 
@@ -105,7 +105,7 @@ TTL:   3600
 2. Name it: `CNAME`
 3. Content (just one line):
 ```
-gps.nodesurge.tech
+marinersapp.com/gps
 ```
 4. Click **Commit changes**
 
@@ -114,8 +114,8 @@ gps.nodesurge.tech
 ## STEP 5: Verify
 
 1. Wait 5-30 minutes for DNS propagation
-2. Open: **https://gps.nodesurge.tech**
-3. You should see NaviGPS Pro
+2. Open: **https://marinersapp.com/gps**
+3. You should see SeaGPS Pro
 4. Test on mobile — allow GPS permission when prompted
 5. Test on PC — try the RECEIVE function
 
