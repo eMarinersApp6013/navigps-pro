@@ -91,6 +91,17 @@ function updateDisplay() {
   // Timestamp
   var now = new Date();
   document.getElementById('posTimestamp').textContent = now.toUTCString().slice(-12, -4);
+
+  // Update AT SEA view if visible
+  updateAtSeaDisplay();
+
+  // Constellation source
+  var srcEl = document.getElementById('navSourceDisplay');
+  if (srcEl) {
+    var src = STATE.gnssConstellation || 'MULTI';
+    srcEl.textContent = src;
+    srcEl.style.color = src === 'GPS' ? '#4CAF50' : src === 'GLONASS' ? '#2196F3' : src === 'GALILEO' ? '#FF9800' : src === 'BEIDOU' ? '#f44336' : 'var(--info)';
+  }
 }
 
 /* ============================================================
@@ -102,6 +113,96 @@ function updateClock() {
   var m = now.getUTCMinutes().toString().padStart(2,'0');
   var s = now.getUTCSeconds().toString().padStart(2,'0');
   document.getElementById('utcClock').textContent = h + ':' + m + ':' + s + ' UTC';
+}
+
+/* ============================================================
+   AT SEA DGPS VIEW
+   ============================================================ */
+var atSeaUseUTC = false;
+
+function setNavView(view) {
+  var detail = document.getElementById('navDetailView');
+  var atsea = document.getElementById('navAtSeaView');
+  var btnDetail = document.getElementById('btnViewDetail');
+  var btnAtSea = document.getElementById('btnViewAtSea');
+  if (!detail || !atsea) return;
+
+  if (view === 'atsea') {
+    detail.style.display = 'none';
+    atsea.style.display = 'flex';
+    btnDetail.style.background = 'var(--bg-input)';
+    btnDetail.style.color = 'var(--text-primary)';
+    btnAtSea.style.background = 'var(--accent)';
+    btnAtSea.style.color = '#000';
+    updateAtSeaDisplay();
+  } else {
+    detail.style.display = '';
+    atsea.style.display = 'none';
+    btnDetail.style.background = 'var(--accent)';
+    btnDetail.style.color = '#000';
+    btnAtSea.style.background = 'var(--bg-input)';
+    btnAtSea.style.color = 'var(--text-primary)';
+  }
+}
+
+function toggleAtSeaClock() {
+  atSeaUseUTC = !atSeaUseUTC;
+  updateAtSeaDisplay();
+}
+
+function updateAtSeaDisplay() {
+  var el = document.getElementById('navAtSeaView');
+  if (!el || el.style.display === 'none') return;
+
+  var s = getSettings();
+  var fmt = s.posFormat;
+  var displayLat = STATE.lat;
+  var displayLon = STATE.lon;
+  if (STATE.manualMode && STATE.manualLat != null) {
+    displayLat = STATE.manualLat;
+    displayLon = STATE.manualLon;
+  }
+
+  // Position
+  document.getElementById('atseaLat').textContent = formatLat(displayLat, fmt);
+  document.getElementById('atseaLon').textContent = formatLon(displayLon, fmt);
+
+  // Time
+  var now = new Date();
+  var timeStr;
+  if (atSeaUseUTC) {
+    timeStr = now.getUTCHours().toString().padStart(2,'0') + ':' +
+              now.getUTCMinutes().toString().padStart(2,'0') + ':' +
+              now.getUTCSeconds().toString().padStart(2,'0') + ' UTC';
+  } else {
+    timeStr = now.getHours().toString().padStart(2,'0') + ':' +
+              now.getMinutes().toString().padStart(2,'0') + ':' +
+              now.getSeconds().toString().padStart(2,'0') + ' LT';
+  }
+  document.getElementById('atseaTime').textContent = timeStr;
+
+  // Accuracy
+  var acc = STATE.accuracy;
+  document.getElementById('atseaAcc').textContent = acc != null ? 'ACC ' + acc.toFixed(1) + ' m' : 'ACC --.- m';
+
+  // Constellation
+  var cst = STATE.primaryConstellation || STATE.gnssConstellation || 'GPS';
+  document.getElementById('atseaConstellation').textContent = cst;
+
+  // SOG
+  var sogKn = STATE.sogMS != null ? STATE.sogMS * 1.94384 : null;
+  document.getElementById('atseaSOG').textContent = sogKn != null ? sogKn.toFixed(1) : '--.--';
+
+  // COG
+  var cog = STATE.cogGPS;
+  document.getElementById('atseaCOG').textContent = cog != null ? cog.toFixed(1).padStart(5, '0') : '---.-';
+
+  // VAR
+  var v = STATE.magVar;
+  document.getElementById('atseaVAR').textContent = v != null ? Math.abs(v).toFixed(1) + '\u00B0' + (v >= 0 ? 'E' : 'W') : '--.--';
+
+  // HDOP — not available from browser API, show accuracy-derived estimate
+  document.getElementById('atseaHDOP').textContent = acc != null ? (acc / 5).toFixed(1) : '--';
 }
 
 /* ============================================================
@@ -123,4 +224,18 @@ function haversineBearing(lat1, lon1, lat2, lon2) {
   var x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
           Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function updateConstellationHealth() {
+  var constellations = ['gps', 'glonass', 'galileo', 'beidou', 'navic', 'sbas'];
+  constellations.forEach(function(c) {
+    var countEl = document.getElementById(c + 'Count');
+    var healthEl = document.getElementById(c + 'Health');
+    if (!countEl || !healthEl) return;
+    var count = parseInt(countEl.textContent) || 0;
+    if (count >= 4) { healthEl.style.color = '#4CAF50'; healthEl.title = 'Good'; }
+    else if (count >= 2) { healthEl.style.color = '#FF9800'; healthEl.title = 'Degraded'; }
+    else if (count > 0) { healthEl.style.color = '#f44336'; healthEl.title = 'Poor'; }
+    else { healthEl.style.color = '#555'; healthEl.title = 'No signal'; }
+  });
 }

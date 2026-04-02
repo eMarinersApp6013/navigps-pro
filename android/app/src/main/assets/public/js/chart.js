@@ -315,28 +315,91 @@ function initChartSearch() {
 }
 
 function doChartSearch(q) {
+  var results = document.getElementById('chartSearchResults');
+  var maritimeKeywords = /port|harbour|harbor|marina|anchorage|terminal|wharf|dock|berth|jetty|quay/i;
+
+  // Build Nominatim URL with viewbox for nearby priority
   var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) +
     '&format=json&limit=8&addressdetails=1';
-  var results = document.getElementById('chartSearchResults');
+  if (STATE.map) {
+    var bounds = STATE.map.getBounds();
+    url += '&viewbox=' + bounds.getWest().toFixed(4) + ',' + bounds.getSouth().toFixed(4) + ',' +
+      bounds.getEast().toFixed(4) + ',' + bounds.getNorth().toFixed(4) + '&bounded=0';
+  }
 
-  fetch(url, { headers: { 'Accept-Language': 'en' } }).then(function(r) { return r.json(); }).then(function(data) {
+  // Nominatim search
+  var nominatimPromise = fetch(url, { headers: { 'Accept-Language': 'en' } })
+    .then(function(r) { return r.json(); })
+    .catch(function() { return []; });
+
+  // Overpass API search for maritime features
+  var overpassData = [];
+  var overpassPromise;
+  if (STATE.map) {
+    var b = STATE.map.getBounds();
+    var bbox = b.getSouth().toFixed(4) + ',' + b.getWest().toFixed(4) + ',' + b.getNorth().toFixed(4) + ',' + b.getEast().toFixed(4);
+    var overpassQuery = '[out:json][timeout:5];(' +
+      'node["seamark:type"~"harbour|anchorage|marina"]('+bbox+');' +
+      'node["harbour"]('+bbox+');' +
+      'node["leisure"="marina"]('+bbox+');' +
+      ');out body 10;';
+    overpassPromise = fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(overpassQuery)
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d && d.elements) {
+        overpassData = d.elements.filter(function(el) {
+          var name = (el.tags && el.tags.name) || '';
+          return name.toLowerCase().indexOf(q.toLowerCase()) >= 0;
+        }).map(function(el) {
+          return {
+            lat: el.lat, lon: el.lon,
+            display_name: (el.tags.name || 'Maritime Feature') + ', ' + (el.tags['seamark:type'] || el.tags.harbour || 'port'),
+            type: el.tags['seamark:type'] || 'harbour',
+            source: 'overpass'
+          };
+        });
+      }
+    }).catch(function() {});
+  } else {
+    overpassPromise = Promise.resolve();
+  }
+
+  Promise.all([nominatimPromise, overpassPromise]).then(function(res) {
+    var data = (res[0] || []).concat(overpassData);
     if (!data || data.length === 0) {
       results.innerHTML = '<div style="padding:8px;color:var(--text-dim)">No results</div>';
       results.style.display = 'block';
       return;
     }
-    // Sort: ports/harbours first
+
+    // Sort: prioritize maritime features (port, harbour, marina, anchorage, terminal)
     data.sort(function(a, b) {
-      var aPort = (a.type || '').match(/port|harbour|marina/) ? 0 : 1;
-      var bPort = (b.type || '').match(/port|harbour|marina/) ? 0 : 1;
+      var aName = ((a.display_name || '') + ' ' + (a.type || '')).toLowerCase();
+      var bName = ((b.display_name || '') + ' ' + (b.type || '')).toLowerCase();
+      var aPort = maritimeKeywords.test(aName) ? 0 : 1;
+      var bPort = maritimeKeywords.test(bName) ? 0 : 1;
       return aPort - bPort;
     });
 
+    // Deduplicate by proximity (within ~0.01 deg)
+    var unique = [];
+    data.forEach(function(item) {
+      var dominated = unique.some(function(u) {
+        return Math.abs(u.lat - item.lat) < 0.01 && Math.abs(u.lon - item.lon) < 0.01;
+      });
+      if (!dominated) unique.push(item);
+    });
+    data = unique.slice(0, 10);
+
     results.innerHTML = data.map(function(item) {
+      var name = (item.display_name || '').split(',')[0];
+      var detail = (item.display_name || '').split(',').slice(1, 3).join(',');
+      var isMaritime = maritimeKeywords.test(((item.display_name || '') + ' ' + (item.type || '')).toLowerCase());
+      var badge = isMaritime ? '<span style="font-size:8px;background:#1565C0;color:#fff;padding:1px 4px;border-radius:3px;margin-left:4px">PORT</span>' : '';
       return '<div class="search-result-item" data-lat="' + item.lat + '" data-lon="' + item.lon + '">' +
-        '<span style="font-weight:600">' + (item.display_name || '').split(',')[0] + '</span>' +
-        '<span style="font-size:10px;color:var(--text-dim);display:block">' +
-        (item.display_name || '').split(',').slice(1, 3).join(',') + '</span></div>';
+        '<span style="font-weight:600">' + name + badge + '</span>' +
+        '<span style="font-size:10px;color:var(--text-dim);display:block">' + detail + '</span></div>';
     }).join('');
     results.style.display = 'block';
 
@@ -350,7 +413,7 @@ function doChartSearch(q) {
         document.getElementById('chartSearchInput').value = '';
       });
     });
-  }).catch(function() {});
+  });
 }
 
 /* ============================================================

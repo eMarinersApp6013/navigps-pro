@@ -54,19 +54,40 @@ function calcBearingDistance() {
 /* Quick mode: click two points on chart */
 var chartBrgPoints = [];
 function enableChartBearing() {
-  if (!STATE.map) { alert('Open CHART tab first'); return; }
-  chartBrgPoints = [];
-  document.getElementById('brgChartStatus').textContent = 'Tap Point A on chart...';
-  STATE.map.once('click', function(e) {
-    chartBrgPoints.push(e.latlng);
-    document.getElementById('brgChartStatus').textContent = 'Tap Point B on chart...';
-    STATE.map.once('click', function(e2) {
-      chartBrgPoints.push(e2.latlng);
-      var dist = haversineDistance(chartBrgPoints[0].lat, chartBrgPoints[0].lng, chartBrgPoints[1].lat, chartBrgPoints[1].lng);
-      var brg = haversineBearing(chartBrgPoints[0].lat, chartBrgPoints[0].lng, chartBrgPoints[1].lat, chartBrgPoints[1].lng);
-      document.getElementById('brgChartStatus').textContent = 'Dist: ' + (dist/1852).toFixed(2) + ' NM | Brg: ' + brg.toFixed(1) + '\u00B0T';
-      // Draw line on chart
-      L.polyline([chartBrgPoints[0], chartBrgPoints[1]], { color: '#ffab00', weight: 2, dashArray: '6,4' }).addTo(STATE.map);
+  // Auto-switch to chart tab
+  switchTab('chart', document.querySelectorAll('.nav-btn')[1]);
+
+  // Wait for chart to initialize
+  setTimeout(function() {
+    if (!STATE.map) { alert('Chart not available'); return; }
+    chartBrgPoints = [];
+    document.getElementById('brgChartStatus').textContent = 'Tap Point A on chart...';
+    STATE.map.once('click', function(e) {
+      chartBrgPoints.push(e.latlng);
+      document.getElementById('brgChartStatus').textContent = 'Tap Point B on chart...';
+      STATE.map.once('click', function(e2) {
+        chartBrgPoints.push(e2.latlng);
+        // Fill in bearing calculator fields
+        document.getElementById('brgLatA').value = Math.abs(chartBrgPoints[0].lat).toFixed(5);
+        document.getElementById('brgLatADir').value = chartBrgPoints[0].lat >= 0 ? 'N' : 'S';
+        document.getElementById('brgLonA').value = Math.abs(chartBrgPoints[0].lng).toFixed(5);
+        document.getElementById('brgLonADir').value = chartBrgPoints[0].lng >= 0 ? 'E' : 'W';
+        document.getElementById('brgLatB').value = Math.abs(chartBrgPoints[1].lat).toFixed(5);
+        document.getElementById('brgLatBDir').value = chartBrgPoints[1].lat >= 0 ? 'N' : 'S';
+        document.getElementById('brgLonB').value = Math.abs(chartBrgPoints[1].lng).toFixed(5);
+        document.getElementById('brgLonBDir').value = chartBrgPoints[1].lng >= 0 ? 'E' : 'W';
+        // Draw line on chart
+        L.polyline([chartBrgPoints[0], chartBrgPoints[1]], { color: '#ffab00', weight: 2, dashArray: '6,4' }).addTo(STATE.map);
+        // Calculate and show result
+        var dist = haversineDistance(chartBrgPoints[0].lat, chartBrgPoints[0].lng, chartBrgPoints[1].lat, chartBrgPoints[1].lng);
+        var brg = haversineBearing(chartBrgPoints[0].lat, chartBrgPoints[0].lng, chartBrgPoints[1].lat, chartBrgPoints[1].lng);
+        document.getElementById('brgChartStatus').textContent = 'Dist: ' + (dist/1852).toFixed(2) + ' NM | Brg: ' + brg.toFixed(1) + '\u00B0T';
+        // Switch back to NAV tab and auto-calculate
+        setTimeout(function() {
+          switchTab('nav', document.querySelectorAll('.nav-btn')[0]);
+          calcBearingDistance();
+        }, 1500);
+      });
     });
-  });
+  }, 500);
 }

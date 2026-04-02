@@ -101,9 +101,14 @@ function triggerSpoofingAlert(alerts) {
     localStorage.setItem('navigps_dr_good_pos', JSON.stringify(DR.lastGoodPosition));
   }
 
-  // Show spoofing banner
-  var banner = document.getElementById('spoofingBanner');
-  if (banner) banner.classList.add('show');
+  // Delay DR warning by 60 seconds to allow GPS to attempt fix
+  if (!DR._delayTimer) {
+    DR._delayTimer = setTimeout(function() {
+      var banner = document.getElementById('spoofingBanner');
+      if (banner && DR.spoofingDetected) banner.classList.add('show');
+      DR._delayTimer = null;
+    }, 60000);
+  }
 
   // Show DR panel
   var panel = document.getElementById('drPanel');
