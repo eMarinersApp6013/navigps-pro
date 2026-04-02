@@ -1,9 +1,9 @@
-# NaviGPS Pro — Professional Development & Testing Setup
+# SeaGPS Pro — Professional Development & Testing Setup
 
 ## Overview
 
 This document covers the complete, proper development and testing pipeline
-for NaviGPS Pro and all future eMarinersApp mobile apps. No shortcuts.
+for SeaGPS Pro and all future eMarinersApp mobile apps. No shortcuts.
 
 ---
 

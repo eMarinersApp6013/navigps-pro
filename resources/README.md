@@ -23,6 +23,6 @@ npx capacitor-assets generate --iconBackgroundColor '#0a1628' --splashBackground
 
 ## Icon guidelines:
 - Ship compass/navigation theme
-- "NaviGPS Pro" or compass rose imagery
+- "SeaGPS Pro" or compass rose imagery
 - Keep it simple — readable at 29x29px
 - Use the app's green accent (#00e676) on dark background (#0a1628)

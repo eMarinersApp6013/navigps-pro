@@ -5,6 +5,7 @@
    ============================================================ */
 var celestialBodies = [];
 var celestialMode = 'stars'; // 'stars' or 'sun'
+var celestialHdgManual = false;
 
 function setCelestialMode(mode) {
   celestialMode = mode;
@@ -136,6 +137,12 @@ function getSkyColor(sunAlt, nightMode) {
 }
 
 function renderCelestial() {
+  // Auto-fill compass heading if user hasn't manually changed it
+  if (!celestialHdgManual && (STATE.compassHeading != null || STATE.cogGPS != null)) {
+    var autoHdg = STATE.compassHeading || STATE.cogGPS;
+    document.getElementById('celestialHdg').value = Math.round(autoHdg);
+  }
+
   var canvas = document.getElementById('celestial-canvas');
   if (!canvas) return;
 

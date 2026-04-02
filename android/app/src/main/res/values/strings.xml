@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">NaviGPS Pro</string>
-    <string name="title_activity_main">NaviGPS Pro</string>
+    <string name="app_name">SeaGPS Pro</string>
+    <string name="title_activity_main">SeaGPS Pro</string>
     <string name="package_name">com.emarinersapp.navigpspro</string>
     <string name="custom_url_scheme">com.emarinersapp.navigpspro</string>
 </resources>

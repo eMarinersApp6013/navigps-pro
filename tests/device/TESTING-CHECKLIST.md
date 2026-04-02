@@ -1,4 +1,4 @@
-# NaviGPS Pro — Device Testing Checklist
+# SeaGPS Pro — Device Testing Checklist
 
 Use this checklist before every release. Test on a real Android device with GPS.
 

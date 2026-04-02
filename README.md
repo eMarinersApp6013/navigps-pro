@@ -1,6 +1,6 @@
-# NaviGPS Pro — Maritime Position System
+# SeaGPS Pro — Maritime Position System
 
-Live at: https://gps.nodesurge.tech
+Live at: https://marinersapp.com/gps
 
 Standalone maritime GPS web app for bridge officers.
 Works on mobile (iOS/Android) and PC browsers.

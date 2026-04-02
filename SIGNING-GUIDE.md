@@ -1,4 +1,4 @@
-# Code Signing Guide — NaviGPS Pro
+# Code Signing Guide — SeaGPS Pro
 
 ## Why Signing Matters
 
@@ -131,10 +131,10 @@ Xcode handles this automatically if you enable "Automatically manage signing."
 ### Step 1: Create Firebase Project
 
 1. Go to https://console.firebase.google.com
-2. Create new project: "NaviGPS Pro"
+2. Create new project: "SeaGPS Pro"
 3. Add Android app:
    - Package name: `com.emarinersapp.navigpspro`
-   - App nickname: "NaviGPS Pro"
+   - App nickname: "SeaGPS Pro"
    - Skip SHA-1 for now
 
 ### Step 2: Enable App Distribution
@@ -176,7 +176,7 @@ After setup, every push to `main`:
 ### Step 2: Create App
 
 1. Create app > Enter details:
-   - App name: "NaviGPS Pro"
+   - App name: "SeaGPS Pro"
    - Default language: English
    - App type: App
    - Free or Paid: Free (or Paid if you want)

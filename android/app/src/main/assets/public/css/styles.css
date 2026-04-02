@@ -386,46 +386,4 @@ html,body {
 .constellation-row:hover { background: #1a2a3a !important; }
 .constellation-row.primary { border: 1px solid #00e676; }
 
-/* ============================================================
-   AT SEA DGPS VIEW
-   ============================================================ */
-.atsea-container {
-  display:flex; flex-direction:column; flex:1;
-  background:#0a0e14; color:#00e676;
-  font-family:'JetBrains Mono',monospace;
-  min-height:0; height:100%;
-}
-.atsea-top {
-  display:flex; justify-content:space-between; align-items:center;
-  padding:6px 12px; border-bottom:1px solid #00e67633;
-  font-size:13px; flex-shrink:0;
-}
-.atsea-cell { white-space:nowrap; }
-.atsea-center {
-  flex:1; display:flex; flex-direction:column;
-  justify-content:center; align-items:center;
-  padding:16px 8px;
-}
-.atsea-pos {
-  font-size:clamp(40px, 10vw, 80px);
-  font-weight:700; line-height:1.15;
-  color:#00e676; letter-spacing:2px;
-  text-align:center; word-break:break-all;
-}
-.atsea-label {
-  font-size:11px; letter-spacing:2px; text-transform:uppercase;
-  color:#00e67688; margin-bottom:2px;
-}
-.atsea-bottom {
-  display:flex; justify-content:space-around; align-items:center;
-  padding:10px 12px; border-top:1px solid #00e67633;
-  flex-shrink:0;
-}
-.atsea-bottom-cell {
-  text-align:center; min-width:0; flex:1;
-}
-.atsea-val {
-  font-size:clamp(20px, 5vw, 36px);
-  font-weight:600; color:#00e676;
-  line-height:1.2;
-}
+/* AT SEA view now uses all inline styles — old .atsea-* classes removed */

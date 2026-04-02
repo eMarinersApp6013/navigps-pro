@@ -1,4 +1,4 @@
-# Changelog — NaviGPS Pro
+# Changelog — SeaGPS Pro
 
 All notable changes to this project will be documented in this file.
 

@@ -215,7 +215,7 @@ jobs:
     - name: Upload debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: NaviGPS-Pro-debug-${{ github.sha }}
+        name: SeaGPS-Pro-debug-${{ github.sha }}
         path: android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 90
 
@@ -354,14 +354,14 @@ jobs:
     - name: Upload release APK
       uses: actions/upload-artifact@v4
       with:
-        name: NaviGPS-Pro-release-apk-${{ github.sha }}
+        name: SeaGPS-Pro-release-apk-${{ github.sha }}
         path: android/app/build/outputs/apk/release/app-release*.apk
         retention-days: 90
 
     - name: Upload release AAB
       uses: actions/upload-artifact@v4
       with:
-        name: NaviGPS-Pro-release-aab-${{ github.sha }}
+        name: SeaGPS-Pro-release-aab-${{ github.sha }}
         path: android/app/build/outputs/bundle/release/app-release*.aab
         retention-days: 90
         if-no-files-found: ignore
@@ -371,8 +371,8 @@ jobs:
         echo "## Release Build Complete" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Artifacts:" >> $GITHUB_STEP_SUMMARY
-        echo "- **APK** (for direct install): NaviGPS-Pro-release-apk" >> $GITHUB_STEP_SUMMARY
-        echo "- **AAB** (for Play Store): NaviGPS-Pro-release-aab" >> $GITHUB_STEP_SUMMARY
+        echo "- **APK** (for direct install): SeaGPS-Pro-release-apk" >> $GITHUB_STEP_SUMMARY
+        echo "- **AAB** (for Play Store): SeaGPS-Pro-release-aab" >> $GITHUB_STEP_SUMMARY
 
     - name: Clean up keystore
       if: always()
@@ -394,7 +394,7 @@ jobs:
     - name: Download debug APK
       uses: actions/download-artifact@v4
       with:
-        name: NaviGPS-Pro-debug-${{ github.sha }}
+        name: SeaGPS-Pro-debug-${{ github.sha }}
         path: ./apk/
 
     - name: Upload to Firebase App Distribution

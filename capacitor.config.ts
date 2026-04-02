@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.emarinersapp.navigpspro',
-  appName: 'NaviGPS Pro',
+  appName: 'SeaGPS Pro',
   webDir: 'www',
 
   // Server config — loads from local files (no remote server)
@@ -49,7 +49,7 @@ const config: CapacitorConfig = {
     backgroundColor: '#0a1628',
     contentInset: 'always',
     preferredContentMode: 'mobile',
-    scheme: 'NaviGPS Pro'
+    scheme: 'SeaGPS Pro'
   }
 };
 

@@ -1,6 +1,6 @@
 {
 	"appId": "com.emarinersapp.navigpspro",
-	"appName": "NaviGPS Pro",
+	"appName": "SeaGPS Pro",
 	"webDir": "www",
 	"server": {
 		"androidScheme": "https",
@@ -33,6 +33,6 @@
 		"backgroundColor": "#0a1628",
 		"contentInset": "always",
 		"preferredContentMode": "mobile",
-		"scheme": "NaviGPS Pro"
+		"scheme": "SeaGPS Pro"
 	}
 }
